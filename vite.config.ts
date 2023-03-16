@@ -17,7 +17,6 @@ const getPackageNameCamelCase = () => {
 const fileName = {
   es: `${getPackageName()}.mjs`,
   cjs: `${getPackageName()}.cjs`,
-  iife: `${getPackageName()}.iife.js`,
 };
 
 const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
@@ -30,6 +29,9 @@ module.exports = defineConfig({
       name: getPackageNameCamelCase(),
       formats,
       fileName: (format) => fileName[format],
-    },
+    },  
+    rollupOptions: {
+        external:["@react-spring/web", /@arcgis\/core\/.*/ ],
+    }}
   },
-});
+);

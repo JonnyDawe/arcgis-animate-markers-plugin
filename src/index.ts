@@ -1,2 +1,3 @@
+export { AnimatedSymbol } from "./AnimatedSymbol";
 export { SymbolAnimationManager } from "./AnimationManager";
-export { throttleAsync } from "./throttle";
+export { throttleAsync } from "./utils/throttle";
