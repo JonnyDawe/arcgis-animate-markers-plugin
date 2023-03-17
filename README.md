@@ -24,7 +24,7 @@ To begin, you will need to install `arcgis-animate-markers-plugin`:
 npm install arcgis-animate-markers-plugin
 ```
 
-After installation, you can create a symbol animation manager for the featurelayerview to animate the point markers as follows:
+After installation, you can create a symbol animation manager for any layerview to animate the point markers as follows:
 
 ```js
 import { SymbolAnimationManager } from "arcgis-animate-markers-plugin";
