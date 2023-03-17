@@ -2,7 +2,21 @@
 
 Animate your marker symbols effortlessly with this easy-to-use plugin designed for use with the ArcGIS Maps SDK for JavaScript.
 
+## Examples
+
+- [Live Demo](https://jonnydawe.github.io/Arcgis-Animate-Markers/)
+- [Demo Repo](https://github.com/JonnyDawe/Arcgis-Animate-Markers)
+
 ## Getting Started
+
+### Prerequisites
+
+To use this plugin library, you need to have the following peer dependencies installed:
+
+`ArcGIS Maps SDK for JavaScript`
+`React-spring`
+
+### Installation
 
 To begin, you will need to install `arcgis-animate-markers-plugin`:
 

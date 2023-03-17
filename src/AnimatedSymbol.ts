@@ -17,20 +17,25 @@ export class AnimatedSymbol {
     graphic,
     easingConfig,
     id,
+    isOverlay = false,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
+    isOverlay?: boolean;
   }): IAnimatedGraphic {
     (graphic as IAnimatedGraphic).symbolAnimation = new AnimatedSymbol({
       graphic,
       easingConfig,
       id,
+      isOverlay,
     });
     return graphic as IAnimatedGraphic;
   }
 
   public id: string;
+  public isOverlay: boolean;
+
   private easingConfig: AnimationEasingConfig;
   private graphic: Graphic;
   private originalSymbol: __esri.Symbol;
@@ -39,10 +44,12 @@ export class AnimatedSymbol {
     graphic,
     easingConfig,
     id,
+    isOverlay = false,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
+    isOverlay?: boolean;
   }) {
     this.graphic = graphic;
 
@@ -51,6 +58,7 @@ export class AnimatedSymbol {
 
     this.easingConfig = easingConfig;
     this.id = id;
+    this.isOverlay = isOverlay;
   }
 
   private animationStartTimeStamp = 0;
