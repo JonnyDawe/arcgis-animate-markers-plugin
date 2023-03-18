@@ -1,6 +1,6 @@
 # arcgis-animate-markers-plugin
 
-This plugin is compatible with the ArcGIS Maps SDK for JavaScript, empowers you to effortlessly animate any point marker with spring-like physics. With this library, you can easily add life to your marker symbols and make them bounce, oscillate or move with dynamic motion.
+This plugin is compatible with the ArcGIS Maps SDK for JavaScript and empowers you to effortlessly animate any point marker with spring-like physics. With this library, you can easily add life to your marker symbols and make them bounce, oscillate or move with dynamic motion.
 
 ## Examples
 
