@@ -145,6 +145,12 @@ export class SymbolAnimationManager {
     return Object.values(this.animatedGraphics) ?? [];
   }
 
+  public removeAllAnimatedGraphics(): void {
+    this.getAllAnimatedGraphics().forEach(animatedGraphic => {
+      this.removeAnimatedGraphic({ graphic: animatedGraphic });
+    });
+  }
+
   public makeAnimatableSymbol({
     graphic,
     easingConfig = { type: "spring", options: springConfig.molasses },
