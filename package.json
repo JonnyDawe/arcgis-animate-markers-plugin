@@ -1,7 +1,7 @@
 {
   "name": "arcgis-animate-markers-plugin",
   "private": false,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "./dist/arcgis-animate-markers-plugin.cjs",
   "module": "./dist/arcgis-animate-markers-plugin.mjs",
   "exports": {
