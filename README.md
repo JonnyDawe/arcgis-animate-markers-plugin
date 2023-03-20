@@ -150,7 +150,7 @@ returns the animated graphic with the given graphic and animationId, if it exist
 getAnimatedGraphic({ graphic, animationId }: { graphic?: __esri.Graphic; animationId?: string }): IAnimatedGraphic | undefined
 ```
 
-#### getAnimatedGraphic
+#### getAllAnimatedGraphics
 
 returns all animated graphics.
 
