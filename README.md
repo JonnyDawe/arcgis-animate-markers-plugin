@@ -1,6 +1,12 @@
+ <p align="center">
+  <img width="180" src="https://i.imgur.com/mRmpnBR.png" alt="plugin logo">
+</p>
+
 # arcgis-animate-markers-plugin
 
 A JavaScript plugin library for animating symbols in the ArcGIS Maps SDK using spring-like physics. With this library, you can animate marker symbol properties such as scale and rotation to create engaging, dynamic and interactive maps!
+
+![Example animation on hover](https://i.imgur.com/AoRAT05.gif)
 
 ## Examples
 
@@ -58,7 +64,7 @@ animatedGraphic.symbolAnimation.start({
 });
 ```
 
-## Documentation:
+# Documentation:
 
 ### Class: `SymbolAnimationManager`
 
@@ -75,7 +81,7 @@ const symbolAnimationManager = new SymbolAnimationManager({
 
 #### mapView _`required`_
 
-The MapView associated with the layer.
+The MapView associated with the LayerView that will have its point symbols animated.
 
 #### layerView _`required`_
 
@@ -97,7 +103,7 @@ makeAnimatableSymbol({ graphic, easingConfig, isOverlay, animationId }: { graphi
 
 ##### easingConfig _`optional`_
 
-- The easingConfig parameter specifies the easing function used for the animation. Either a Spring or standary easing type can be used:
+- The easingConfig parameter specifies the easing function used for the animation. Either a Spring or standard easing type can be used:
 
 ```js
 // Example - Spring Easing.
@@ -173,3 +179,165 @@ Removes all animated graphics from display.
 ```js
 removeAllAnimatedGraphics(): void
 ```
+
+### Class: `AnimatedSymbol`
+
+This class provides the ability to animate a symbol for a Graphic object in ArcGIS API for JavaScript.
+
+### Factory function:
+
+Creates an AnimatedSymbol and attaches it to the provided Graphic.
+
+```js
+static createAnimatedGraphic({
+  graphic,
+  easingConfig,
+  id,
+  isOverlay = false,
+}: {
+  graphic: __esri.Graphic;
+  easingConfig: AnimationEasingConfig;
+  id: string;
+  isOverlay?: boolean;
+}): IAnimatedGraphic
+```
+
+#### Parameters
+
+- graphic _`required`_: The Graphic to animate the symbol for.
+- easingConfig _`required`_: [Configuration options](#####-easingConfig) for the animation easing.
+- id (string) _`required`_: Unique identifier for the animated symbol.
+- isOverlay (boolean) _`optional`_: Whether the animation should be displayed as an overlay. `Default is false.`
+
+#### Returns
+
+An animated Graphic that extends the standard esri graphic. It has a new property called `symbolAnimation` which contains the `AnimatedSymbol` Class properties and methods.
+
+### Methods
+
+#### start
+
+This function animates a symbol by applying changes to its properties. The animation is controlled by an easing function or a spring value.
+
+```js
+start(animationProps: IAnimationProps)
+```
+
+- `animationProps` _`optional`_ [IAnimationProps](####-IAnimationProps): An object that is used to configure and control the animation of a symbol object.
+
+#### stop
+
+Stops the animation completely
+
+```js
+stop();
+```
+
+#### resetSymbol
+
+Reset the symbol completely to its original symbol.
+
+```js
+resetSymbol();
+```
+
+### Types:
+
+#### IAnimatedGraphic
+
+An animated Graphic that extends the standard esri graphic. It has a new property called `symbolAnimation` which contains the `AnimatedSymbol` Class properties and methods.
+
+```typescript
+interface IAnimatedGraphic extends __esri.Graphic {
+  symbolAnimation: AnimatedSymbol;
+}
+```
+
+#### IAnimationProps
+
+The IAnimationProps interface defines the properties that can be used to configure an animation. It has the following optional properties:
+
+```typescript
+interface IAnimationProps {
+  to?: IAnimatableSymbolProps;
+  onStep?: onSymbolAnimationStep<AnimatableSymbol>;
+  onStart?: () => void;
+  onFinish?: () => void;
+}
+```
+
+- `to` _`optional`_ [IAnimatableSymbolProps](####-IAnimationProps): An object that holds the properties that the symbol will animate to.
+- `onStep` _`optional`_ [onSymbolAnimationStep](####-onSymbolAnimationStep): An optional callback function for customising the symbol change on each animation step. On each step the applied symbol will be applied to the animating graphic.
+- `onStart` _`optional`_: an optional callback function that is called when the animation starts.
+- `onFinish` _`optional`_: an optional callback function that is called when the animation finishes.
+
+#### IAnimatableSymbolProps
+
+The IAnimatableSymbolProps interface defines the properties that can be animated for a symbol. It has the following optional properties:
+
+```typescript
+interface IAnimatableSymbolProps {
+  scale?: number;
+  rotate?: number;
+}
+```
+
+- `scale` _`optional`_ (number): A number that represents the new scale of the symbol. If not provided, the scale will not change.
+- `rotate` _`optional`_ (number) : A number that represents the new rotation of the symbol in degrees. If not provided, the rotation will not change.
+
+#### onSymbolAnimationStep
+
+The onSymbolAnimationStep type defines a callback function that is called on each animation step.
+
+```typescript
+type onSymbolAnimationStep<T extends AnimatableSymbol> = (
+  progress: number,
+  fromSymbol: SymbolType<T>,
+  to: IAnimatableSymbolProps
+) => SymbolType<T>;
+```
+
+- `progress`: number: A number between 0 and 1 that represents the current progress of the animation.
+- `fromSymbol`: A symbol object that represents the starting symbol before the animation.
+- `to`: [IAnimatableSymbolProps](####-IAnimatableSymbolProps): An object that holds the properties that the symbol will animate to.
+
+#### AnimationEasingConfig
+
+A union type that defines the configuration for the easing function used in the animation. It can be one of the following:
+
+```typescript
+type AnimationEasingConfig = ISpringEasingConfig | IStandardEasingConfig;
+```
+
+#### ISpringEasingConfig
+
+An interface that defines the configuration for the spring easing function. It has the following properties:
+
+```typescript
+interface ISpringEasingConfig {
+  type: "spring";
+  options?: SpringAnimationProps["config"];
+}
+```
+
+- `type` ("spring"): A string that identifies the easing function as a spring.
+- `options`: AnimationProps["config"]: An object that holds the animation configuration - see the React-Spring Config Options [here](https://www.react-spring.dev/docs/advanced/config#reference)
+
+#### IStandardEasingConfig
+
+An interface that defines the configuration for a standard easing function. It has the following properties:
+
+```typescript
+export interface IStandardEasingConfig {
+  type: "easing";
+  options?: {
+    easingFunction: easingTypes | EasingFunction;
+    duration: number;
+  };
+}
+```
+
+- `type` ("easing"): A string that identifies the easing function as a standard easing function.
+- `options`: An optional object that holds the animation configuration. It has two properties:
+  - `easingFunction` (easingTypes | EasingFunction): The easing function to use for the animation. It can be one of the predefined easing function strings in the easingTypes type or a custom easing function. The default is "linear".
+  - `duration` (number): The duration of the animation in milliseconds. The default is 1000.
