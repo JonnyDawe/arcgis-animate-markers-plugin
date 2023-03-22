@@ -1,4 +1,4 @@
-import { AnimationProps, EasingFunction } from "@react-spring/web";
+import { AnimationProps as SpringAnimationProps, EasingFunction } from "@react-spring/web";
 
 import { AnimatedSymbol } from "../AnimatedSymbol";
 
@@ -52,7 +52,7 @@ export type AnimationEasingConfig = ISpringEasingConfig | IStandardEasingConfig;
 
 export interface ISpringEasingConfig {
   type: "spring";
-  options?: AnimationProps["config"];
+  options?: SpringAnimationProps["config"];
 }
 
 export interface IStandardEasingConfig {

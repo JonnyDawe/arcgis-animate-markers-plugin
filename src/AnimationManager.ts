@@ -1,7 +1,7 @@
 import Graphic from "@arcgis/core/Graphic";
-import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer.js";
-import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect.js";
-import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter.js";
+import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
+import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
+import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter";
 import FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
 import { config as springConfig } from "@react-spring/web";
 
@@ -62,8 +62,13 @@ export class SymbolAnimationManager {
       return layerView.layer as __esri.GraphicsLayer;
     } else {
       this.animationGraphicsLayer = new GraphicsLayer({
-        effect: (layerView.layer as __esri.FeatureLayer).effect,
+        ...((layerView.layer as __esri.FeatureLayer).effect && {
+          effect: (layerView.layer as __esri.FeatureLayer).effect,
+        }),
       });
+
+      console.log("animationLayer: ", this.animationGraphicsLayer);
+      this.animationGraphicsLayer.loaded;
 
       this.mapView.map.add(
         this.animationGraphicsLayer,

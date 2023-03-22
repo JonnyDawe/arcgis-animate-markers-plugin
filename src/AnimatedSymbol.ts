@@ -1,4 +1,5 @@
 import Graphic from "@arcgis/core/Graphic";
+import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils.js";
 import { EasingFunction, easings, SpringValue } from "@react-spring/web";
 
 import {
@@ -10,7 +11,6 @@ import {
   IAnimationProps,
   onSymbolAnimationStep,
 } from "./types";
-import { isCIMPictureMarkerLayer, isCIMVectorMarkerLayer } from "./types/typeGuards";
 
 export class AnimatedSymbol {
   public static createAnimatedGraphic({
@@ -66,8 +66,12 @@ export class AnimatedSymbol {
     this.animationStartTimeStamp = 0;
   }
 
-  public start(animationProps: IAnimationProps) {
+  public start(animationProps: IAnimationProps): void {
     this.animateSymbol(animationProps, animationProps.onStep ?? this.animateMarker);
+  }
+
+  public stop(): void {
+    this.abortCurrentAnimation?.();
   }
 
   private get animateMarker(): onSymbolAnimationStep<__esri.Symbol> {
@@ -95,7 +99,7 @@ export class AnimatedSymbol {
     return;
   };
 
-  public animateSymbol(
+  private animateSymbol(
     animationProps: IAnimationProps,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
@@ -213,27 +217,31 @@ export class AnimatedSymbol {
     fromSymbol: __esri.CIMSymbol,
     to: IAnimatableSymbolProps
   ): __esri.CIMSymbol => {
-    const newSymbol = fromSymbol.clone();
+    const sym = fromSymbol.clone();
 
-    for (const [index, symbolLayer] of newSymbol.data.symbol.symbolLayers.entries()) {
-      if (isCIMVectorMarkerLayer(symbolLayer) || isCIMPictureMarkerLayer(symbolLayer)) {
-        const originalSymbolLayer = (this.originalSymbol as __esri.CIMSymbol).data.symbol
-          .symbolLayers[index] as __esri.CIMVectorMarker;
+    const originalSize = cimSymbolUtils.getCIMSymbolSize(this.originalSymbol as __esri.CIMSymbol);
+    const originalAngle = cimSymbolUtils.getCIMSymbolRotation(
+      this.originalSymbol as __esri.CIMSymbol
+    );
+    const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
+    const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym);
 
-        if (to.scale) {
-          symbolLayer.size =
-            symbolLayer.size + (originalSymbolLayer.size * to.scale - symbolLayer.size) * progress;
-        }
-        if (to.rotate != undefined && !isNaN(to.rotate)) {
-          const { rotation: fromAngle = 0 } = symbolLayer;
-          symbolLayer.rotation =
-            fromAngle + ((originalSymbolLayer.rotation ?? 0) + -to.rotate - fromAngle) * progress;
-          console.log(symbolLayer.rotation);
-        }
-      }
+    if (to.scale) {
+      cimSymbolUtils.scaleCIMSymbolTo(
+        sym,
+        fromSize + (originalSize * to.scale - fromSize) * progress
+      );
     }
 
-    return newSymbol;
+    if (to.rotate != undefined && !isNaN(to.rotate)) {
+      cimSymbolUtils.applyCIMSymbolRotation(
+        sym,
+        (originalAngle + to.rotate - fromAngle) * progress,
+        this.getRotationDirection(originalAngle, to.rotate) === "clockwise"
+      );
+    }
+
+    return sym;
   };
 
   public resetSymbol() {
@@ -246,5 +254,24 @@ export class AnimatedSymbol {
     } else {
       return easings[easing](t);
     }
+  }
+
+  /** The function returns the direction of rotation required to reach the desired heading through
+   *  the smallest angle. */
+  private getRotationDirection(
+    currentHeading: number,
+    desiredHeading: number
+  ): "clockwise" | "counterclockwise" {
+    // Convert headings to range [-180, 180)
+    currentHeading = ((((currentHeading + 180) % 360) + 360) % 360) - 180;
+    desiredHeading = ((((desiredHeading + 180) % 360) + 360) % 360) - 180;
+
+    // Calculate the difference between the two headings
+    const angle = ((desiredHeading - currentHeading + 540) % 360) - 180;
+
+    // Determine the direction of rotation
+    const direction = angle > 0 ? "clockwise" : "counterclockwise";
+
+    return direction;
   }
 }
