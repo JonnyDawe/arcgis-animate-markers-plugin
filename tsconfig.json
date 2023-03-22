@@ -6,6 +6,7 @@
     "preserveConstEnums": true,
     "rootDir": "./src",
     "target": "ESNext",
+    "sourceMap": true,
     "declaration": true,
     "useDefineForClassFields": true,
     "module": "ESNext",
