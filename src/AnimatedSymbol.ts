@@ -207,7 +207,6 @@ export class AnimatedSymbol {
 
     if (to.rotate != undefined && !isNaN(to.rotate)) {
       sym.angle = fromAngle + (originalAngle + to.rotate - fromAngle) * progress;
-      console.log(sym.angle);
     }
 
     return sym;
@@ -220,11 +219,9 @@ export class AnimatedSymbol {
     const sym = fromSymbol.clone();
 
     const originalSize = cimSymbolUtils.getCIMSymbolSize(this.originalSymbol as __esri.CIMSymbol);
-    const originalAngle = cimSymbolUtils.getCIMSymbolRotation(
-      this.originalSymbol as __esri.CIMSymbol
-    );
+
     const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
-    const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym);
+    const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym, true);
 
     if (to.scale) {
       cimSymbolUtils.scaleCIMSymbolTo(
@@ -236,8 +233,8 @@ export class AnimatedSymbol {
     if (to.rotate != undefined && !isNaN(to.rotate)) {
       cimSymbolUtils.applyCIMSymbolRotation(
         sym,
-        (originalAngle + to.rotate - fromAngle) * progress,
-        this.getRotationDirection(originalAngle, to.rotate) === "clockwise"
+        fromAngle + (to.rotate - fromAngle) * progress,
+        true
       );
     }
 
@@ -254,24 +251,5 @@ export class AnimatedSymbol {
     } else {
       return easings[easing](t);
     }
-  }
-
-  /** The function returns the direction of rotation required to reach the desired heading through
-   *  the smallest angle. */
-  private getRotationDirection(
-    currentHeading: number,
-    desiredHeading: number
-  ): "clockwise" | "counterclockwise" {
-    // Convert headings to range [-180, 180)
-    currentHeading = ((((currentHeading + 180) % 360) + 360) % 360) - 180;
-    desiredHeading = ((((desiredHeading + 180) % 360) + 360) % 360) - 180;
-
-    // Calculate the difference between the two headings
-    const angle = ((desiredHeading - currentHeading + 540) % 360) - 180;
-
-    // Determine the direction of rotation
-    const direction = angle > 0 ? "clockwise" : "counterclockwise";
-
-    return direction;
   }
 }

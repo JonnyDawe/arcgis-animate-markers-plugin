@@ -1,5 +1,5 @@
  <p align="center">
-  <img width="180" src="https://i.imgur.com/mRmpnBR.png" alt="plugin logo">
+  <img width="180" src="https://i.imgur.com/qq9rtY2.png" alt="plugin logo">
 </p>
 
 # arcgis-animate-markers-plugin
@@ -283,7 +283,7 @@ interface IAnimatableSymbolProps {
 ```
 
 - `scale` _`optional`_ (number): A number that represents the new scale of the symbol. If not provided, the scale will not change.
-- `rotate` _`optional`_ (number) : A number that represents the new rotation of the symbol in degrees. If not provided, the rotation will not change.
+- `rotate` _`optional`_ (number) : A number that represents the new geographic rotation (rotation clockwise) of the symbol in degrees . If not provided, the rotation will not change.
 
 #### onSymbolAnimationStep
 
