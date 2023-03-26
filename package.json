@@ -1,7 +1,7 @@
 {
   "name": "arcgis-animate-markers-plugin",
   "private": false,
-  "version": "1.0.12",
+  "version": "1.0.13",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JonnyDawe/arcgis-animate-markers-plugin.git"
