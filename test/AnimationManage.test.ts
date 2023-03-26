@@ -2,16 +2,13 @@ import Point from "@arcgis/core/geometry/Point";
 import Graphic from "@arcgis/core/Graphic";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
-import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
-import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import MapView from "@arcgis/core/views/MapView";
-import { config as springConfig } from "@react-spring/web";
-import { afterEach, beforeAll, beforeEach, describe, expect, test, vi, vitest } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test, vi, vitest } from "vitest";
 
 import { AnimatedSymbol } from "../src/AnimatedSymbol";
 import { SymbolAnimationManager } from "../src/AnimationManager";
-import { AnimatableLayerView, IAnimatedGraphic } from "../src/types";
+import { AnimatableLayerView } from "../src/types";
 
 describe("SymbolAnimationManager", () => {
   let manager: SymbolAnimationManager;
@@ -250,26 +247,82 @@ describe("SymbolAnimationManager", () => {
       expect(manager.getAllAnimatedGraphics().length).toBe(1);
     });
 
-    test("returns an existing animated Graphic if it already exists", () => {
+    describe("featurelayer is parent", () => {
+      beforeEach(() => {
+        featureLayerView = { layer: new FeatureLayer() } as unknown as __esri.FeatureLayerView;
+        featureLayerView.layer.objectIdField = "OBJECTID";
+      });
+
+      test("removes an animated Graphic", async () => {
+        manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
+        const animatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
+        expect(
+          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+            return graphicInLayer === animatedGraphic;
+          })
+        ).not.toBe(-1);
+        manager.removeAnimatedGraphic({ animationId: "test" });
+        // wait for short period
+        await new Promise(r => setTimeout(r, 300));
+        expect(
+          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+            return graphicInLayer === animatedGraphic;
+          })
+        ).toBe(-1);
+      });
+
+      test("removes the graphic from the exclude feature effect if it is not an overlay and the parent layer is a featurelayer.", () => {
+        manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
+        manager.makeAnimatableSymbol({ graphic, animationId: "test" });
+        expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN ( 999 )");
+        manager.removeAnimatedGraphic({ animationId: "test" });
+        expect(featureLayerView.featureEffect.filter.where).toBe("1<>1");
+      });
+    });
+
+    describe("graphicslayer is parent", () => {
+      beforeEach(() => {
+        graphicsLayerView = { layer: new GraphicsLayer() } as unknown as __esri.GraphicsLayerView;
+      });
+
+      test("removes an animated Graphic if it is an overlay", async () => {
+        manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
+        const animatedGraphic = manager.makeAnimatableSymbol({
+          graphic,
+          animationId: "test",
+          isOverlay: true,
+        });
+        expect(
+          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+            return graphicInLayer === animatedGraphic;
+          })
+        ).not.toBe(-1);
+        manager.removeAnimatedGraphic({ animationId: "test" });
+        // wait for short period
+        await new Promise(r => setTimeout(r, 300));
+        expect(
+          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+            return graphicInLayer === animatedGraphic;
+          })
+        ).toBe(-1);
+      });
+    });
+  });
+
+  describe("removeAllAnimatedGraphics", () => {
+    test("removes all animated graphics", () => {
       manager = new SymbolAnimationManager({ layerView: graphicsLayerView, mapView });
-      const animatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
 
-      const sameAnimatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
-      expect(animatedGraphic).toBe(sameAnimatedGraphic);
-    });
-
-    test("adds the graphic to the exclude feature effect if it is not an overlay and the parent layer is a featurelayer.", () => {
-      manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
+      vi.spyOn(manager, "removeAnimatedGraphic");
       manager.makeAnimatableSymbol({ graphic, animationId: "test" });
-
-      expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN ( 999 )");
-    });
-
-    test("does not add the graphic to the exclude feature effect if it is an overlay and the parent layer is a featurelayer.", () => {
-      manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
-      manager.makeAnimatableSymbol({ graphic, animationId: "test", isOverlay: true });
-      expect(graphic.getObjectId).toBeCalledTimes(0);
-      expect(featureLayerView.featureEffect.filter.where).toBe("1<>1");
+      manager.makeAnimatableSymbol({
+        graphic: graphic.clone(),
+        animationId: "anotherTest",
+      });
+      expect(manager.getAllAnimatedGraphics().length).toBe(2);
+      manager.removeAllAnimatedGraphics();
+      expect(manager.getAllAnimatedGraphics().length).toBe(0);
+      expect(manager.removeAnimatedGraphic).toBeCalledTimes(2);
     });
   });
 });

@@ -4,7 +4,7 @@ import CIMSymbol from "@arcgis/core/symbols/CIMSymbol.js";
 import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol.js";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils";
-import { afterEach, beforeEach, describe, expect, test, vitest } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vitest } from "vitest";
 
 import {
   AnimatedSymbol,
@@ -15,14 +15,13 @@ import {
 import { AnimationEasingConfig, IAnimatedGraphic } from "../src/types";
 
 describe("AnimatedSymbol", () => {
-  let simpleMarkerSymbol: __esri.SimpleMarkerSymbol;
+  const simpleMarkerSymbol: __esri.SimpleMarkerSymbol = new SimpleMarkerSymbol({
+    size: 10,
+    color: "red",
+  });
   let graphic: __esri.Graphic;
 
   beforeEach(() => {
-    simpleMarkerSymbol = new SimpleMarkerSymbol({
-      size: 10,
-      color: "red",
-    });
     graphic = new Graphic({
       geometry: new Point({
         x: 0,
@@ -30,10 +29,6 @@ describe("AnimatedSymbol", () => {
       }),
       symbol: simpleMarkerSymbol,
     });
-  });
-
-  afterEach(() => {
-    vitest.resetAllMocks();
   });
 
   test("can create an animated graphic", () => {
@@ -217,44 +212,12 @@ describe("AnimatedSymbol", () => {
 
 describe("update Symbol properties for", () => {
   describe("Picture Marker", () => {
-    let pictureMarkerSymbol: __esri.PictureMarkerSymbol;
-    beforeEach(() => {
-      pictureMarkerSymbol = new PictureMarkerSymbol({
-        url: "https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png",
-        width: "64",
-        height: "64",
-      });
+    const pictureMarkerSymbol: __esri.PictureMarkerSymbol = new PictureMarkerSymbol({
+      url: "https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png",
+      width: "64",
+      height: "64",
     });
-    afterEach(() => {
-      vitest.resetAllMocks();
-    });
-    test("is scaled correctly", () => {
-      const symb = updatePictureMarker(0.5, pictureMarkerSymbol, { scale: 2 }, pictureMarkerSymbol);
-      expect(symb.height).toBe(64 + 64 * 0.5);
-    });
-    test("is rotated correctly", () => {
-      const symb = updatePictureMarker(
-        0.5,
-        pictureMarkerSymbol,
-        { rotate: -30 },
-        pictureMarkerSymbol
-      );
-      expect(symb.angle).toBe(-30 * 0.5);
-    });
-  });
 
-  describe("Picture Marker", () => {
-    let pictureMarkerSymbol: __esri.PictureMarkerSymbol;
-    beforeEach(() => {
-      pictureMarkerSymbol = new PictureMarkerSymbol({
-        url: "https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png",
-        width: "64",
-        height: "64",
-      });
-    });
-    afterEach(() => {
-      vitest.resetAllMocks();
-    });
     test("is scaled correctly", () => {
       const symb = updatePictureMarker(0.5, pictureMarkerSymbol, { scale: 2 }, pictureMarkerSymbol);
       expect(symb.height).toBe(64 + 64 * 0.5);
@@ -271,13 +234,9 @@ describe("update Symbol properties for", () => {
   });
 
   describe("Simple Marker", () => {
-    let simpleMarkerSymbol: __esri.SimpleMarkerSymbol;
-
-    beforeEach(() => {
-      simpleMarkerSymbol = new SimpleMarkerSymbol({
-        size: 10,
-        color: "red",
-      });
+    const simpleMarkerSymbol: __esri.SimpleMarkerSymbol = new SimpleMarkerSymbol({
+      size: 10,
+      color: "red",
     });
 
     afterEach(() => {
@@ -294,60 +253,53 @@ describe("update Symbol properties for", () => {
   });
 
   describe("CIM Marker", () => {
-    let CIMMarkerSymbol: __esri.CIMSymbol;
-
-    beforeEach(() => {
-      CIMMarkerSymbol = new CIMSymbol({
-        data: {
-          type: "CIMSymbolReference",
-          symbol: {
-            type: "CIMPointSymbol",
-            symbolLayers: [
-              {
-                type: "CIMVectorMarker",
-                enable: true,
-                size: 32,
-                frame: {
-                  xmin: 0,
-                  ymin: 0,
-                  xmax: 16,
-                  ymax: 16,
-                },
-                markerGraphics: [
-                  {
-                    type: "CIMMarkerGraphic",
-                    geometry: {
-                      rings: [
-                        [
-                          [8, 16],
-                          [0, 0],
-                          [16, 0],
-                          [8, 16],
-                        ],
-                      ],
-                    },
-                    symbol: {
-                      type: "CIMPolygonSymbol",
-                      symbolLayers: [
-                        {
-                          type: "CIMSolidStroke",
-                          width: 5,
-                          color: [240, 94, 35, 255],
-                        } as any,
-                      ],
-                    },
-                  },
-                ],
+    const CIMMarkerSymbol: __esri.CIMSymbol = new CIMSymbol({
+      data: {
+        type: "CIMSymbolReference",
+        symbol: {
+          type: "CIMPointSymbol",
+          symbolLayers: [
+            {
+              type: "CIMVectorMarker",
+              enable: true,
+              size: 32,
+              frame: {
+                xmin: 0,
+                ymin: 0,
+                xmax: 16,
+                ymax: 16,
               },
-            ],
-          },
+              markerGraphics: [
+                {
+                  type: "CIMMarkerGraphic",
+                  geometry: {
+                    rings: [
+                      [
+                        [8, 16],
+                        [0, 0],
+                        [16, 0],
+                        [8, 16],
+                      ],
+                    ],
+                  },
+                  symbol: {
+                    type: "CIMPolygonSymbol",
+                    symbolLayers: [
+                      {
+                        type: "CIMSolidStroke",
+                        width: 5,
+                        color: [240, 94, 35, 255],
+                      } as any,
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
         },
-      });
+      },
     });
 
-    afterEach(() => {
-      vitest.resetAllMocks();
-    });
     test("is scaled correctly", () => {
       const symb = updateCIMSymbolPointMarker(0.5, CIMMarkerSymbol, { scale: 2 }, CIMMarkerSymbol);
       expect(cimSymbolUtils.getCIMSymbolSize(symb)).toBe(32 + 32 * 0.5);
