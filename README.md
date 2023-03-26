@@ -1,6 +1,8 @@
  <p align="center">
   <img width="180" src="https://i.imgur.com/qq9rtY2.png" alt="plugin logo">
 </p>
+<img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/JdMapDev?style=social">
+
 
 # arcgis-animate-markers-plugin
 
@@ -85,7 +87,12 @@ The MapView associated with the LayerView that will have its point symbols anima
 
 #### layerView _`required`_
 
-The AnimatableLayerView ( FeatureLayerView / GraphicsLayerView / GeoJSONLayerView) that will be animated.
+The AnimatableLayerView ( FeatureLayerView / GraphicsLayerView / GeoJSONLayerView) that will be animated. 
+
+> **Note**
+>
+> - If the AnimatableLayerView is a GraphicsLayer, then the symbols will be modified directly. Any new animated graphics not already in the layer must be added as an overlay. 
+> - If the layer is of any other animatable type, a new graphics layer will be added on top of the parent layer in order to animate symbols. The symbols from the parent layer will be hidden using a feature effect.
 
 ### Methods
 
