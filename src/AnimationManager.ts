@@ -105,9 +105,12 @@ export class SymbolAnimationManager {
 
   private updateExcludedFeatures(): void {
     (this.parentLayerView as FeatureLayerView).featureEffect.filter = new FeatureFilter({
-      where: `${(this.parentLayerView as FeatureLayerView).layer.objectIdField} IN ( ${Array.from(
-        this.graphicsObjectIdsToFilter
-      ).join(",")} )`,
+      where:
+        this.graphicsObjectIdsToFilter.size > 0
+          ? `${(this.parentLayerView as FeatureLayerView).layer.objectIdField} IN ( ${Array.from(
+              this.graphicsObjectIdsToFilter
+            ).join(",")} )`
+          : "1<>1",
     });
   }
 
@@ -211,7 +214,10 @@ export class SymbolAnimationManager {
         animationId: uniqueGraphicId,
       }) as IAnimatedGraphic;
 
-      if (isGraphicsLayerView(this.parentLayerView)) {
+      if (
+        isGraphicsLayerView(this.parentLayerView) &&
+        animatedGraphic.symbolAnimation.isOverlay === false
+      ) {
         // reset the graphic symbol.
         animatedGraphic.symbolAnimation.resetSymbol();
       } else {
