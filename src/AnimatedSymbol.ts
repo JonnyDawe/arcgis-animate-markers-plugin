@@ -36,9 +36,9 @@ export class AnimatedSymbol {
   public id: string;
   public isOverlay: boolean;
 
-  private easingConfig: AnimationEasingConfig;
-  private graphic: Graphic;
-  private originalSymbol: __esri.Symbol;
+  readonly easingConfig: AnimationEasingConfig;
+  readonly graphic: Graphic;
+  readonly originalSymbol: __esri.Symbol;
 
   constructor({
     graphic,
@@ -67,29 +67,28 @@ export class AnimatedSymbol {
   }
 
   public start(animationProps: IAnimationProps): void {
-    this.animateSymbol(animationProps, animationProps.onStep ?? this.animateMarker);
+    this.animateSymbolOnStep(animationProps, animationProps.onStep ?? this.animateMarkerOnStep);
   }
 
   public stop(): void {
     this.abortCurrentAnimation?.();
   }
 
-  private get animateMarker(): onSymbolAnimationStep<__esri.Symbol> {
+  private get animateMarkerOnStep(): onSymbolAnimationStep<__esri.Symbol> {
     switch (this.originalSymbol.type) {
       case "simple-marker": {
-        return this.updateSimpleMarker;
+        return updateSimpleMarker;
       }
 
       case "picture-marker": {
-        return this.updatePictureMarker;
+        return updatePictureMarker;
       }
 
       case "cim": {
-        return this.updateCIMSymbolPointMarker;
+        return updateCIMSymbolPointMarker;
       }
       default:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        return (_progress: number, _fromSymbol: __esri.Symbol, _to: IAnimatableSymbolProps) => {
+        return () => {
           return this.originalSymbol;
         };
     }
@@ -99,7 +98,7 @@ export class AnimatedSymbol {
     return;
   };
 
-  private animateSymbol(
+  private animateSymbolOnStep(
     animationProps: IAnimationProps,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
@@ -111,7 +110,7 @@ export class AnimatedSymbol {
         ? new SpringValue(0, { to: 1, config: this.easingConfig.options })
         : null;
 
-    this.abortCurrentAnimation?.();
+    this.stop();
     animationProps?.onStart?.();
     let abort = false;
 
@@ -131,6 +130,7 @@ export class AnimatedSymbol {
           elapsed > (this.easingConfig.options?.duration ?? 0)) ||
         springEasing?.idle === true
       ) {
+        this.graphic.symbol = onStep(1, fromSymbol, animationProps.to ?? {}, this.originalSymbol);
         this.resetAnimationTimeStamp();
         animationProps?.onFinish?.();
         return;
@@ -156,7 +156,12 @@ export class AnimatedSymbol {
         }
       }
 
-      this.graphic.symbol = onStep(animationProgress, fromSymbol, animationProps.to ?? {});
+      this.graphic.symbol = onStep(
+        animationProgress,
+        fromSymbol,
+        animationProps.to ?? {},
+        this.originalSymbol
+      );
       window.requestAnimationFrame(step);
     };
 
@@ -166,82 +171,8 @@ export class AnimatedSymbol {
     };
   }
 
-  private updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol> = (
-    progress: number,
-    fromSymbol: __esri.SimpleMarkerSymbol,
-    to: IAnimatableSymbolProps
-  ): __esri.SimpleMarkerSymbol => {
-    const sym = fromSymbol.clone();
-    const { size: originalSize, angle: originalAngle } = this
-      .originalSymbol as __esri.SimpleMarkerSymbol;
-    const { size: fromSize, angle: fromAngle } = fromSymbol;
-
-    if (to.scale) {
-      sym.size = fromSize + (originalSize * to.scale - fromSize) * progress;
-    }
-
-    if (to.rotate != undefined && !isNaN(to.rotate)) {
-      sym.angle = fromAngle + (originalAngle + to.rotate - fromAngle) * progress;
-    }
-
-    return sym;
-  };
-
-  private updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymbol> = (
-    progress: number,
-    fromSymbol: __esri.PictureMarkerSymbol,
-    to: IAnimatableSymbolProps
-  ): __esri.PictureMarkerSymbol => {
-    const sym = fromSymbol.clone();
-    const {
-      height: originalHeight,
-      width: originalWidth,
-      angle: originalAngle,
-    } = this.originalSymbol as __esri.PictureMarkerSymbol;
-    const { height: fromHeight, width: fromWidth, angle: fromAngle } = fromSymbol;
-
-    if (to.scale) {
-      sym.width = fromWidth + (originalWidth * to.scale - fromWidth) * progress;
-      sym.height = fromHeight + (originalHeight * to.scale - fromHeight) * progress;
-    }
-
-    if (to.rotate != undefined && !isNaN(to.rotate)) {
-      sym.angle = fromAngle + (originalAngle + to.rotate - fromAngle) * progress;
-    }
-
-    return sym;
-  };
-  private updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol> = (
-    progress: number,
-    fromSymbol: __esri.CIMSymbol,
-    to: IAnimatableSymbolProps
-  ): __esri.CIMSymbol => {
-    const sym = fromSymbol.clone();
-
-    const originalSize = cimSymbolUtils.getCIMSymbolSize(this.originalSymbol as __esri.CIMSymbol);
-
-    const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
-    const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym, true);
-
-    if (to.scale) {
-      cimSymbolUtils.scaleCIMSymbolTo(
-        sym,
-        fromSize + (originalSize * to.scale - fromSize) * progress
-      );
-    }
-
-    if (to.rotate != undefined && !isNaN(to.rotate)) {
-      cimSymbolUtils.applyCIMSymbolRotation(
-        sym,
-        fromAngle + (to.rotate - fromAngle) * progress,
-        true
-      );
-    }
-
-    return sym;
-  };
-
   public resetSymbol() {
+    this.stop();
     this.graphic.symbol = this.originalSymbol;
   }
 
@@ -253,3 +184,77 @@ export class AnimatedSymbol {
     }
   }
 }
+
+export const updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol> = (
+  progress: number,
+  fromSymbol: __esri.CIMSymbol,
+  to: IAnimatableSymbolProps,
+  originalSymbol: __esri.CIMSymbol
+): __esri.CIMSymbol => {
+  const sym = fromSymbol.clone();
+
+  const originalSize = cimSymbolUtils.getCIMSymbolSize(originalSymbol);
+
+  const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
+  const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym, true) % 360;
+
+  if (to.scale) {
+    cimSymbolUtils.scaleCIMSymbolTo(
+      sym,
+      fromSize + (originalSize * to.scale - fromSize) * progress
+    );
+  }
+
+  if (to.rotate != undefined && !isNaN(to.rotate)) {
+    cimSymbolUtils.applyCIMSymbolRotation(
+      sym,
+      fromAngle + (to.rotate - fromAngle) * progress,
+      true
+    );
+  }
+
+  return sym;
+};
+
+export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol> = (
+  progress: number,
+  fromSymbol: __esri.SimpleMarkerSymbol,
+  to: IAnimatableSymbolProps,
+  originalSymbol: __esri.SimpleMarkerSymbol
+): __esri.SimpleMarkerSymbol => {
+  const sym = fromSymbol.clone();
+  const { size: originalSize } = originalSymbol;
+  const { size: fromSize, angle: fromAngle } = fromSymbol;
+
+  if (to.scale) {
+    sym.size = fromSize + (originalSize * to.scale - fromSize) * progress;
+  }
+
+  if (to.rotate != undefined && !isNaN(to.rotate)) {
+    sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
+  }
+
+  return sym;
+};
+
+export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymbol> = (
+  progress: number,
+  fromSymbol: __esri.PictureMarkerSymbol,
+  to: IAnimatableSymbolProps,
+  originalSymbol: __esri.PictureMarkerSymbol
+): __esri.PictureMarkerSymbol => {
+  const sym = fromSymbol.clone();
+  const { height: originalHeight, width: originalWidth } = originalSymbol;
+  const { height: fromHeight, width: fromWidth, angle: fromAngle } = fromSymbol;
+
+  if (to.scale) {
+    sym.width = fromWidth + (originalWidth * to.scale - fromWidth) * progress;
+    sym.height = fromHeight + (originalHeight * to.scale - fromHeight) * progress;
+  }
+
+  if (to.rotate != undefined && !isNaN(to.rotate)) {
+    sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
+  }
+
+  return sym;
+};

@@ -24,8 +24,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build && dts-bundle-generator --config ./dts-bundle-generator.config.ts",
-    "test": "jest --runInBand",
-    "test:coverage": "jest --runInBand --coverage",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint:scripts": "eslint . --ext .ts",
     "format:scripts": "prettier . --write",
     "format": "npm run format:scripts"
@@ -35,11 +35,11 @@
     "@react-spring/web": "^9.7.1"
   },
   "devDependencies": {
-    "@types/jest": "^29.2.5",
     "@types/jsdom": "^20.0.1",
     "@types/node": "^18.11.18",
     "@typescript-eslint/eslint-plugin": "^5.48.2",
     "@typescript-eslint/parser": "^5.48.2",
+    "@vitest/coverage-c8": "^0.29.7",
     "dts-bundle-generator": "^7.1.0",
     "eslint": "^8.32.0",
     "eslint-config-prettier": "^8.6.0",
@@ -47,12 +47,12 @@
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-simple-import-sort": "^7.0.0",
     "husky": "^8.0.3",
-    "jest": "^29.3.1",
+    "jsdom": "^21.1.1",
     "lint-staged": "^13.1.0",
     "prettier": "^2.8.3",
-    "ts-jest": "^29.0.5",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.4",
-    "vite": "^4.0.4"
+    "vite": "^4.0.4",
+    "vitest": "^0.29.7"
   }
 }

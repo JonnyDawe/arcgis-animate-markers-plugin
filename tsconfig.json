@@ -22,7 +22,7 @@
     "noImplicitReturns": true,
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["vite/client", "node", "jest", "@arcgis/core/interfaces"]
+    "types": ["vite/client", "node", "@arcgis/core/interfaces"]
   },
   "include": ["src"],
   "exclude": ["**/*.test.ts", "node_modules", "test/**", ".history/**"]

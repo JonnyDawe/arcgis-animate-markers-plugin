@@ -30,8 +30,9 @@ export interface IAnimatableSymbolProps {
 
 export type onSymbolAnimationStep<T extends AnimatableSymbol> = (
   progress: number,
-  fromSymbol: SymbolType<T>,
-  to: IAnimatableSymbolProps
+  currentAnimatingSymbol: SymbolType<T>,
+  to: IAnimatableSymbolProps,
+  originalSymbol: SymbolType<T>
 ) => SymbolType<T>;
 
 export type AnimatableSymbol =

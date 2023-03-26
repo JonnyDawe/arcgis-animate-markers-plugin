@@ -32,12 +32,12 @@ export class SymbolAnimationManager {
   /** The layerview that will be animated.
    *  - [TO REVIEW: HAS IMPLICATOINS ON POPUP BEHAVIOUR OF THE GRAPHICS LAYER]
    */
-  private parentLayerView: AnimatableLayerView;
+  readonly parentLayerView: AnimatableLayerView;
 
   /**
    * The graphics layer into which animatedGraphics are added.
    */
-  private animationGraphicsLayer: __esri.GraphicsLayer;
+  readonly animationGraphicsLayer: __esri.GraphicsLayer;
 
   /**
    * The current animated Graphics added to the animation layer
@@ -61,17 +61,14 @@ export class SymbolAnimationManager {
     if (isGraphicsLayerView(layerView)) {
       return layerView.layer as __esri.GraphicsLayer;
     } else {
-      this.animationGraphicsLayer = new GraphicsLayer({
+      const newAnimationGraphicsLayer = new GraphicsLayer({
         ...((layerView.layer as __esri.FeatureLayer).effect && {
           effect: (layerView.layer as __esri.FeatureLayer).effect,
         }),
       });
 
-      console.log("animationLayer: ", this.animationGraphicsLayer);
-      this.animationGraphicsLayer.loaded;
-
       this.mapView.map.add(
-        this.animationGraphicsLayer,
+        newAnimationGraphicsLayer,
         this.mapView.layerViews.findIndex(item => {
           return item === layerView;
         }) + 1
@@ -86,7 +83,7 @@ export class SymbolAnimationManager {
         filter: new FeatureFilter({ where: "1<>1" }),
       });
 
-      return this.animationGraphicsLayer;
+      return newAnimationGraphicsLayer;
     }
   }
 
@@ -110,7 +107,7 @@ export class SymbolAnimationManager {
     (this.parentLayerView as FeatureLayerView).featureEffect.filter = new FeatureFilter({
       where: `${(this.parentLayerView as FeatureLayerView).layer.objectIdField} IN ( ${Array.from(
         this.graphicsObjectIdsToFilter
-      ).join(",")} ) `,
+      ).join(",")} )`,
     });
   }
 
@@ -147,7 +144,7 @@ export class SymbolAnimationManager {
   }
 
   public getAllAnimatedGraphics(): IAnimatedGraphic[] {
-    return Object.values(this.animatedGraphics) ?? [];
+    return Object.values(this.animatedGraphics);
   }
 
   public removeAllAnimatedGraphics(): void {
@@ -185,7 +182,7 @@ export class SymbolAnimationManager {
     // add the graphic to the lookup
     this.animatedGraphics[uniqueGraphicId] = newAnimatedGraphic;
 
-    if (isGraphicsLayerView(this.parentLayerView)) {
+    if (isGraphicsLayerView(this.parentLayerView) && !isOverlay) {
       // directly manipulate the graphic.
     } else {
       // make a new animated graphic and add it to a new graphics layer.

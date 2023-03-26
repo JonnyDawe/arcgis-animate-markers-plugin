@@ -1,3 +1,5 @@
+/// <reference types="vitest" />
+
 import path from "path";
 import { defineConfig } from "vite";
 import packageJson from "./package.json";
@@ -22,6 +24,11 @@ const fileName = {
 const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
 
 module.exports = defineConfig({
+  test: {
+    environment: "jsdom",
+
+    
+  },
   base: "./",
   build: {
     lib: {
