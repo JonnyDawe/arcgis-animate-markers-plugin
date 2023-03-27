@@ -1,8 +1,9 @@
  <p align="center">
   <img width="180" src="https://i.imgur.com/qq9rtY2.png" alt="plugin logo">
 </p>
-<img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/JdMapDev?style=social">
 
+[![codecov](https://codecov.io/gh/JonnyDawe/arcgis-animate-markers-plugin/branch/main/graph/badge.svg?token=CVMFOMYKXE)](https://codecov.io/gh/JonnyDawe/arcgis-animate-markers-plugin)
+![Twitter Follow](https://img.shields.io/twitter/follow/JdMapDev?style=social)
 
 # arcgis-animate-markers-plugin
 
