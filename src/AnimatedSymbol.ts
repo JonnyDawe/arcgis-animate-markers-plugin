@@ -12,7 +12,18 @@ import {
   onSymbolAnimationStep,
 } from "./types";
 
+/**
+ * Class representing an animated symbol.
+ */
 export class AnimatedSymbol {
+  /**
+   * Creates an animated graphic and adds an AnimatedSymbol object to its symbolAnimation property.
+   * @param graphic - The graphic to animate.
+   * @param easingConfig - The configuration for the animation easing.
+   * @param id - The id of the animated symbol.
+   * @param isOverlay - Whether the animated symbol is an overlay.
+   * @returns The animated graphic.
+   */
   public static createAnimatedGraphic({
     graphic,
     easingConfig,
@@ -40,6 +51,13 @@ export class AnimatedSymbol {
   readonly graphic: Graphic;
   readonly originalSymbol: __esri.Symbol;
 
+  /**
+   * Constructs an AnimatedSymbol object.
+   * @param graphic - The graphic to animate.
+   * @param easingConfig - The configuration for the animation easing.
+   * @param id - The id of the animated symbol.
+   * @param isOverlay - Whether the animated symbol is an overlay.
+   */
   constructor({
     graphic,
     easingConfig,
@@ -62,18 +80,33 @@ export class AnimatedSymbol {
   }
 
   private animationStartTimeStamp = 0;
+
+  /**
+   * Resets the animation start time stamp to zero.
+   */
   private resetAnimationTimeStamp() {
     this.animationStartTimeStamp = 0;
   }
 
+  /**
+   * Starts the animation of the symbol.
+   * @param animationProps - The animation properties.
+   */
   public start(animationProps: IAnimationProps): void {
     this.animateSymbolOnStep(animationProps, animationProps.onStep ?? this.animateMarkerOnStep);
   }
 
+  /**
+   * Stops the current animation.
+   */
   public stop(): void {
     this.abortCurrentAnimation?.();
   }
 
+  /**
+   * Returns the appropriate onSymbolAnimationStep function based on the original symbol's type.
+   * @returns The onSymbolAnimationStep function.
+   */
   private get animateMarkerOnStep(): onSymbolAnimationStep<__esri.Symbol> {
     switch (this.originalSymbol.type) {
       case "simple-marker": {
@@ -98,21 +131,28 @@ export class AnimatedSymbol {
     return;
   };
 
+  /**
+   * Animates the symbol on each step of the animation.
+   * @param animationProps - The animation properties.
+   * @param onStep - The onSymbolAnimationStep function to use.
+   */
   private animateSymbolOnStep(
     animationProps: IAnimationProps,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
+    // Clone the starting symbol.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fromSymbol = (this.graphic.symbol as any).clone();
 
+    // initialise the spring value if using spring easing.
     const springEasing =
       this.easingConfig.type === "spring"
         ? new SpringValue(0, { to: 1, config: this.easingConfig.options })
         : null;
 
-    this.stop();
-    animationProps?.onStart?.();
-    let abort = false;
+    this.stop(); // stop running animations
+    animationProps?.onStart?.(); // fire onStart callback
+    let abort = false; // set abort flag to false
 
     const step: FrameRequestCallback = timestamp => {
       if (this.animationStartTimeStamp === 0) {
@@ -120,48 +160,31 @@ export class AnimatedSymbol {
       }
       const elapsed = timestamp - this.animationStartTimeStamp;
 
+      // stop immediately if aborted
       if (abort) {
         this.resetAnimationTimeStamp();
         return;
       }
 
-      if (
-        (this.easingConfig.type === "easing" &&
-          elapsed > (this.easingConfig.options?.duration ?? 0)) ||
-        springEasing?.idle === true
-      ) {
+      // check if animation has reached final frame
+      if (this.isAnimationEnded(elapsed, springEasing)) {
+        // ensure final symbol state target is reached (progress = 1)
         this.graphic.symbol = onStep(1, fromSymbol, animationProps.to ?? {}, this.originalSymbol);
+
         this.resetAnimationTimeStamp();
         animationProps?.onFinish?.();
         return;
       }
 
-      let animationProgress = 0;
-      switch (this.easingConfig.type) {
-        case "easing": {
-          animationProgress = this.calculateEasingProgress(
-            this.easingConfig.options?.easingFunction,
-            elapsed / (this.easingConfig.options?.duration ?? 0)
-          );
-
-          break;
-        }
-        case "spring": {
-          if (springEasing) {
-            springEasing.advance(elapsed);
-            animationProgress = springEasing?.get();
-
-            break;
-          }
-        }
-      }
-
+      // progress aniamtion
       this.graphic.symbol = onStep(
-        animationProgress,
+        this.calculateAnimationProgress(elapsed, springEasing),
         fromSymbol,
         animationProps.to ?? {},
         this.originalSymbol
       );
+
+      // request next frame
       window.requestAnimationFrame(step);
     };
 
@@ -182,6 +205,39 @@ export class AnimatedSymbol {
     } else {
       return easings[easing](t);
     }
+  }
+
+  private calculateAnimationProgress(
+    elapsed: number,
+    springEasing: SpringValue<number> | null
+  ): number {
+    let animationProgress = 0;
+    switch (this.easingConfig.type) {
+      case "easing": {
+        animationProgress = this.calculateEasingProgress(
+          this.easingConfig.options?.easingFunction,
+          elapsed / (this.easingConfig.options?.duration ?? 0)
+        );
+
+        break;
+      }
+      case "spring": {
+        if (springEasing) {
+          springEasing.advance(elapsed);
+          animationProgress = springEasing?.get();
+          break;
+        }
+      }
+    }
+    return animationProgress;
+  }
+
+  private isAnimationEnded(elapsed: number, springEasing: SpringValue<number> | null): boolean {
+    return (
+      (this.easingConfig.type === "easing" &&
+        elapsed > (this.easingConfig.options?.duration ?? 0)) ||
+      springEasing?.idle === true
+    );
   }
 }
 
