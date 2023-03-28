@@ -31,6 +31,7 @@ module.exports = defineConfig({
   },
   base: "./",
   build: {
+    minify:false,
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
       name: getPackageNameCamelCase(),
