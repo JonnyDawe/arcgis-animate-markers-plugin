@@ -4,7 +4,7 @@ import CIMSymbol from "@arcgis/core/symbols/CIMSymbol.js";
 import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol.js";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils";
-import { afterEach, beforeAll, beforeEach, describe, expect, test, vitest } from "vitest";
+import { afterEach, beforeEach, describe, expect, Mock, test, vitest } from "vitest";
 
 import {
   AnimatedSymbol,
@@ -13,6 +13,7 @@ import {
   updateSimpleMarker,
 } from "../src/AnimatedSymbol";
 import { AnimationEasingConfig, IAnimatedGraphic } from "../src/types";
+import { getImageAsBase64 } from "../src/utils/encodeimage";
 
 describe("AnimatedSymbol", () => {
   const simpleMarkerSymbol: __esri.SimpleMarkerSymbol = new SimpleMarkerSymbol({
@@ -213,7 +214,7 @@ describe("AnimatedSymbol", () => {
 describe("update Symbol properties for", () => {
   describe("Picture Marker", () => {
     const pictureMarkerSymbol: __esri.PictureMarkerSymbol = new PictureMarkerSymbol({
-      url: "https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png",
+      url: "https://example.com/image.jpg",
       width: "64",
       height: "64",
     });
@@ -231,12 +232,33 @@ describe("update Symbol properties for", () => {
       );
       expect(symb.angle).toBe(-30 * 0.5);
     });
+    test("is made translucent correctly", async () => {
+      vitest.mock("../src/utils/encodeimage");
+      const encodeImageSpy = vitest.fn().mockImplementation(() => {
+        return "testString";
+      });
+      (getImageAsBase64 as Mock<any, any>).mockImplementation(() => encodeImageSpy());
+
+      const symb = updatePictureMarker(
+        0.5,
+        pictureMarkerSymbol,
+        { opacity: 0.5 },
+        pictureMarkerSymbol
+      );
+
+      expect(symb.url).toContain("opacity='0.75'");
+      expect(symb.url).toContain("href='testString'");
+    });
   });
 
   describe("Simple Marker", () => {
     const simpleMarkerSymbol: __esri.SimpleMarkerSymbol = new SimpleMarkerSymbol({
       size: 10,
       color: "red",
+      outline: {
+        color: "red",
+        width: 1,
+      },
     });
 
     afterEach(() => {
@@ -249,6 +271,16 @@ describe("update Symbol properties for", () => {
     test("is rotated correctly", () => {
       const symb = updateSimpleMarker(0.5, simpleMarkerSymbol, { rotate: -30 }, simpleMarkerSymbol);
       expect(symb.angle).toBe(-30 * 0.5);
+    });
+    test("is made translucent correctly", () => {
+      const symb = updateSimpleMarker(
+        0.5,
+        simpleMarkerSymbol,
+        { opacity: 0.5 },
+        simpleMarkerSymbol
+      );
+      expect(symb.color.a).toBe(0.75);
+      expect(symb.outline.color.a).toBe(0.75);
     });
   });
 

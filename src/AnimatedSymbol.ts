@@ -1,6 +1,8 @@
+import Color from "@arcgis/core/Color.js";
 import Graphic from "@arcgis/core/Graphic";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils.js";
 import { EasingFunction, easings, SpringValue } from "@react-spring/web";
+import svgToMiniDataURI from "mini-svg-data-uri";
 
 import {
   AnimatableSymbol,
@@ -11,6 +13,7 @@ import {
   IAnimationProps,
   onSymbolAnimationStep,
 } from "./types";
+import { getImageAsBase64 } from "./utils/encodeimage";
 
 /**
  * Class representing an animated symbol.
@@ -279,8 +282,13 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
   originalSymbol: __esri.SimpleMarkerSymbol
 ): __esri.SimpleMarkerSymbol => {
   const sym = fromSymbol.clone();
-  const { size: originalSize } = originalSymbol;
-  const { size: fromSize, angle: fromAngle } = fromSymbol;
+  const { size: originalSize, color: originalFillColor, outline: originalOutline } = originalSymbol;
+  const {
+    size: fromSize,
+    angle: fromAngle,
+    color: fromFillColor,
+    outline: fromOutline,
+  } = fromSymbol;
 
   if (to.scale) {
     sym.size = fromSize + (originalSize * to.scale - fromSize) * progress;
@@ -288,6 +296,35 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
 
   if (to.rotate != undefined && !isNaN(to.rotate)) {
     sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
+  }
+
+  if (to.opacity) {
+    const fromFillOpacity = fromFillColor.a ?? 1;
+    const originalFillOpacity = originalFillColor.a ?? 1;
+    const newFillColourOpacity =
+      fromFillOpacity + (originalFillOpacity * to.opacity - fromFillOpacity) * progress;
+
+    sym.color = Color.fromArray([
+      fromFillColor.r,
+      fromFillColor.g,
+      fromFillColor.b,
+      newFillColourOpacity,
+    ]);
+
+    if (originalOutline?.color) {
+      const fromOutlineColor = fromOutline?.color ?? Color.fromArray([0, 0, 0, 1]);
+      const fromOutlineOpacity = fromOutline.color.a;
+      const originalOutlineOpacity = originalOutline.color?.a ?? 1;
+      const newOutlineColourOpacity =
+        fromOutlineOpacity + (originalOutlineOpacity * to.opacity - fromOutlineOpacity) * progress;
+
+      sym.outline.color = Color.fromArray([
+        fromOutlineColor.r,
+        fromOutlineColor.g,
+        fromOutlineColor.b,
+        newOutlineColourOpacity,
+      ]);
+    }
   }
 
   return sym;
@@ -300,7 +337,7 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
   originalSymbol: __esri.PictureMarkerSymbol
 ): __esri.PictureMarkerSymbol => {
   const sym = fromSymbol.clone();
-  const { height: originalHeight, width: originalWidth } = originalSymbol;
+  const { height: originalHeight, width: originalWidth, url: originalUrl } = originalSymbol;
   const { height: fromHeight, width: fromWidth, angle: fromAngle } = fromSymbol;
 
   if (to.scale) {
@@ -310,6 +347,21 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
 
   if (to.rotate != undefined && !isNaN(to.rotate)) {
     sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
+  }
+
+  if (to.opacity) {
+    const encodedurl = getImageAsBase64(originalUrl);
+
+    if (encodedurl) {
+      const optimizedSVGDataURI = svgToMiniDataURI(
+        `<svg width="${sym.width}" height="${sym.height}" opacity="${
+          1 + (1 * to.opacity - 1) * progress
+        }" xmlns="http://www.w3.org/2000/svg"><image href="${encodedurl}" width="${
+          sym.width
+        }" height="${sym.height}"/></svg>`
+      );
+      sym.url = optimizedSVGDataURI;
+    }
   }
 
   return sym;

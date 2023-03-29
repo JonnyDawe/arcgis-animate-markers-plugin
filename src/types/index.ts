@@ -26,6 +26,7 @@ export interface IAnimationProps {
 export interface IAnimatableSymbolProps {
   scale?: number;
   rotate?: number;
+  opacity?: number;
 }
 
 export type onSymbolAnimationStep<T extends AnimatableSymbol> = (
