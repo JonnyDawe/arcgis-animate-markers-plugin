@@ -72,3 +72,7 @@ export interface IAnimatedGraphic extends __esri.Graphic {
 export interface IGraphicWithUID extends __esri.Graphic {
   uid: number;
 }
+
+export interface IPictureMarkerWithOpacity extends __esri.PictureMarkerSymbol {
+  opacity: number;
+}

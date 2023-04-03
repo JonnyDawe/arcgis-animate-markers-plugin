@@ -11,6 +11,7 @@ import {
   IAnimatableSymbolProps,
   IAnimatedGraphic,
   IAnimationProps,
+  IPictureMarkerWithOpacity,
   onSymbolAnimationStep,
 } from "./types";
 import { getImageAsBase64 } from "./utils/encodeimage";
@@ -32,17 +33,20 @@ export class AnimatedSymbol {
     easingConfig,
     id,
     isOverlay = false,
+    opacity = 1,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
     isOverlay?: boolean;
+    opacity?: number;
   }): IAnimatedGraphic {
     (graphic as IAnimatedGraphic).symbolAnimation = new AnimatedSymbol({
       graphic,
       easingConfig,
       id,
       isOverlay,
+      opacity,
     });
     return graphic as IAnimatedGraphic;
   }
@@ -52,6 +56,8 @@ export class AnimatedSymbol {
 
   readonly easingConfig: AnimationEasingConfig;
   readonly graphic: Graphic;
+  readonly opacity: number;
+
   readonly originalSymbol: __esri.Symbol;
 
   /**
@@ -66,20 +72,55 @@ export class AnimatedSymbol {
     easingConfig,
     id,
     isOverlay = false,
+    opacity = 1,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
     isOverlay?: boolean;
+    opacity?: number;
   }) {
+    this.easingConfig = easingConfig;
+    this.id = id;
+    this.isOverlay = isOverlay;
     this.graphic = graphic;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.originalSymbol = (graphic.symbol as any).clone();
+    this.opacity = opacity;
 
-    this.easingConfig = easingConfig;
-    this.id = id;
-    this.isOverlay = isOverlay;
+    if (opacity !== 1) {
+      graphic.symbol = this.setOriginalSymbolWithOpacity(opacity);
+    }
+  }
+
+  private setOriginalSymbolWithOpacity(opacity: number): __esri.Symbol {
+    switch (this.originalSymbol.type) {
+      case "simple-marker": {
+        return updateSimpleMarker(
+          1,
+          this.originalSymbol as __esri.SimpleMarkerSymbol,
+          { opacity },
+          this.originalSymbol as __esri.SimpleMarkerSymbol
+        );
+      }
+
+      case "picture-marker": {
+        (this.originalSymbol as IPictureMarkerWithOpacity).opacity = opacity;
+        return updatePictureMarker(
+          1,
+          this.originalSymbol as __esri.PictureMarkerSymbol,
+          { opacity },
+          this.originalSymbol as __esri.PictureMarkerSymbol
+        );
+      }
+
+      case "cim": {
+        return this.originalSymbol;
+      }
+      default:
+        return this.originalSymbol;
+    }
   }
 
   private animationStartTimeStamp = 0;
@@ -338,7 +379,7 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
 ): __esri.PictureMarkerSymbol => {
   const sym = fromSymbol.clone();
   const { height: originalHeight, width: originalWidth, url: originalUrl } = originalSymbol;
-  const { height: fromHeight, width: fromWidth, angle: fromAngle } = fromSymbol;
+  const { height: fromHeight, width: fromWidth, angle: fromAngle, url: fromUrl } = fromSymbol;
 
   if (to.scale) {
     sym.width = fromWidth + (originalWidth * to.scale - fromWidth) * progress;
@@ -351,14 +392,16 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
 
   if (to.opacity) {
     const encodedurl = getImageAsBase64(originalUrl);
-
+    const originalOpacity = (originalSymbol as IPictureMarkerWithOpacity).opacity ?? 1;
     if (encodedurl) {
+      const fromOpacity = Number.parseFloat(
+        extractAttributeValue(fromUrl, "opacity") ?? originalOpacity.toString()
+      );
+      const toOpacity = fromOpacity + (to.opacity - fromOpacity) * progress;
       const optimizedSVGDataURI = svgToMiniDataURI(
-        `<svg width="${sym.width}" height="${sym.height}" opacity="${
-          1 + (1 * to.opacity - 1) * progress
-        }" xmlns="http://www.w3.org/2000/svg"><image href="${encodedurl}" width="${
-          sym.width
-        }" height="${sym.height}"/></svg>`
+        `<svg width="${sym.width}" height="${sym.height}" opacity="${toOpacity}" xmlns="http://www.w3.org/2000/svg">
+          <image href="${encodedurl}" width="${sym.width}" height="${sym.height}"/>
+        </svg>`
       );
       sym.url = optimizedSVGDataURI;
     }
@@ -366,3 +409,9 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
 
   return sym;
 };
+
+function extractAttributeValue(htmlString: string, attribute: string): string | null {
+  const regex = new RegExp(`${attribute}\\s*=\\s*["']?([^\\s"']*)["']?`);
+  const match = htmlString.match(regex);
+  return match ? match[1] : null;
+}
