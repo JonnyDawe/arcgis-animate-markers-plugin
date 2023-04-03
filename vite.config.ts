@@ -37,7 +37,7 @@ module.exports = defineConfig({
       fileName: (format) => fileName[format],
     },  
     rollupOptions: {
-        external:["@react-spring/web", /@arcgis\/core\/.*/ ],
+        external:["@react-spring/web", /@arcgis\/core\/.*/,"mini-svg-data-uri"],
     }}
   },
 );
