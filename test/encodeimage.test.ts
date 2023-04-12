@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vitest } from "vitest";
+import { beforeEach, describe, expect, Mock, test, vitest } from "vitest";
 
 import { generateBase64Image, getImageAsBase64 } from "../src/utils/encodeimage";
 

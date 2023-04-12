@@ -12,7 +12,12 @@ import {
   updatePictureMarker,
   updateSimpleMarker,
 } from "../src/AnimatedSymbol";
-import { AnimationEasingConfig, IAnimatedGraphic } from "../src/types";
+import {
+  AnimationEasingConfig,
+  IAnimatedGraphic,
+  IPictureMarkerWithOpacity,
+  ISimpleMarkerWithOpacity,
+} from "../src/types";
 import { getImageAsBase64 } from "../src/utils/encodeimage";
 
 describe("AnimatedSymbol", () => {
@@ -32,7 +37,7 @@ describe("AnimatedSymbol", () => {
     });
   });
 
-  test("can create an animated graphic", () => {
+  test("can create a standard simple marker animated graphic", () => {
     const easingConfig: AnimationEasingConfig = {
       type: "easing",
       options: { duration: 1000, easingFunction: "linear" },
@@ -42,6 +47,7 @@ describe("AnimatedSymbol", () => {
       easingConfig,
       id: "animated-graphic",
       isOverlay: true,
+      opacity: 0.5,
     });
 
     expect(animatedGraphic.symbolAnimation).toBeInstanceOf(AnimatedSymbol);
@@ -50,6 +56,49 @@ describe("AnimatedSymbol", () => {
     expect(animatedGraphic.symbolAnimation.easingConfig).toBe(easingConfig);
     expect(animatedGraphic.symbolAnimation.graphic).toBe(graphic);
     expect(animatedGraphic.symbolAnimation.graphic.symbol.type).toBe(simpleMarkerSymbol.type);
+    expect(
+      (animatedGraphic.symbolAnimation.originalSymbol as ISimpleMarkerWithOpacity).opacity
+    ).toBe(0.5);
+    expect(animatedGraphic.symbolAnimation.graphic.symbol.color.a).toBe(0.5);
+  });
+
+  test("can create a picture marker animated graphic", () => {
+    const pictureMarkerSymbol: __esri.PictureMarkerSymbol = new PictureMarkerSymbol({
+      url: "https://example.com/image.jpg",
+      width: "64",
+      height: "64",
+    });
+
+    vitest.mock("../src/utils/encodeimage");
+    const encodeImageSpy = vitest.fn().mockImplementation(() => {
+      return "testString";
+    });
+    (getImageAsBase64 as Mock<any, any>).mockImplementation(() => encodeImageSpy());
+
+    graphic.symbol = pictureMarkerSymbol;
+
+    const easingConfig: AnimationEasingConfig = {
+      type: "easing",
+      options: { duration: 1000, easingFunction: "linear" },
+    };
+    const animatedGraphic = AnimatedSymbol.createAnimatedGraphic({
+      graphic,
+      easingConfig,
+      id: "animated-graphic",
+      isOverlay: true,
+      opacity: 0.5,
+    });
+
+    expect(animatedGraphic.symbolAnimation.graphic.symbol.type).toBe(pictureMarkerSymbol.type);
+    expect(
+      (animatedGraphic.symbolAnimation.originalSymbol as IPictureMarkerWithOpacity).opacity
+    ).toBe(0.5);
+    expect((animatedGraphic.symbolAnimation.graphic.symbol as PictureMarkerSymbol).url).toContain(
+      "opacity='0.5'"
+    );
+    expect((animatedGraphic.symbolAnimation.graphic.symbol as PictureMarkerSymbol).url).toContain(
+      "href='testString'"
+    );
   });
 
   describe("onStart", () => {
