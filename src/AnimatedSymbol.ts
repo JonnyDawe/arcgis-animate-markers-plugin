@@ -12,8 +12,10 @@ import {
   IAnimatedGraphic,
   IAnimationProps,
   IPictureMarkerWithOpacity,
+  ISimpleMarkerWithOpacity,
   onSymbolAnimationStep,
 } from "./types";
+import { isDefined } from "./types/typeGuards";
 import { getImageAsBase64 } from "./utils/encodeimage";
 
 /**
@@ -57,7 +59,6 @@ export class AnimatedSymbol {
   readonly easingConfig: AnimationEasingConfig;
   readonly graphic: Graphic;
   readonly opacity: number;
-
   readonly originalSymbol: __esri.Symbol;
 
   /**
@@ -97,6 +98,9 @@ export class AnimatedSymbol {
   private setOriginalSymbolWithOpacity(opacity: number): __esri.Symbol {
     switch (this.originalSymbol.type) {
       case "simple-marker": {
+        // store the opacity of the original simple marker symbol on the symbol
+        (this.originalSymbol as ISimpleMarkerWithOpacity).opacity = opacity;
+
         return updateSimpleMarker(
           1,
           this.originalSymbol as __esri.SimpleMarkerSymbol,
@@ -106,7 +110,9 @@ export class AnimatedSymbol {
       }
 
       case "picture-marker": {
+        // store the opacity of the original picture marker symbol on the symbol
         (this.originalSymbol as IPictureMarkerWithOpacity).opacity = opacity;
+
         return updatePictureMarker(
           1,
           this.originalSymbol as __esri.PictureMarkerSymbol,
@@ -115,9 +121,7 @@ export class AnimatedSymbol {
         );
       }
 
-      case "cim": {
-        return this.originalSymbol;
-      }
+      case "cim":
       default:
         return this.originalSymbol;
     }
@@ -285,6 +289,7 @@ export class AnimatedSymbol {
   }
 }
 
+/** A utility for updating a CIM symbol point marker symbol on each animation step. */
 export const updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol> = (
   progress: number,
   fromSymbol: __esri.CIMSymbol,
@@ -292,20 +297,18 @@ export const updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol>
   originalSymbol: __esri.CIMSymbol
 ): __esri.CIMSymbol => {
   const sym = fromSymbol.clone();
-
   const originalSize = cimSymbolUtils.getCIMSymbolSize(originalSymbol);
-
   const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
   const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym, true) % 360;
 
-  if (to.scale) {
+  if (isDefined(to.scale)) {
     cimSymbolUtils.scaleCIMSymbolTo(
       sym,
       fromSize + (originalSize * to.scale - fromSize) * progress
     );
   }
 
-  if (to.rotate != undefined && !isNaN(to.rotate)) {
+  if (isDefined(to.rotate)) {
     cimSymbolUtils.applyCIMSymbolRotation(
       sym,
       fromAngle + (to.rotate - fromAngle) * progress,
@@ -316,6 +319,7 @@ export const updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol>
   return sym;
 };
 
+/** A utility for updating a simple marker symbol on each animation step. */
 export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol> = (
   progress: number,
   fromSymbol: __esri.SimpleMarkerSymbol,
@@ -331,17 +335,25 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
     outline: fromOutline,
   } = fromSymbol;
 
-  if (to.scale) {
+  if (isDefined(to.scale)) {
     sym.size = fromSize + (originalSize * to.scale - fromSize) * progress;
   }
 
-  if (to.rotate != undefined && !isNaN(to.rotate)) {
+  if (isDefined(to.rotate)) {
     sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
   }
 
-  if (to.opacity) {
+  if (isDefined(to.opacity)) {
+    const originalSymbolOpacity = (originalSymbol as ISimpleMarkerWithOpacity).opacity ?? 1;
+    const originalFillOpacity = Math.min(
+      1,
+      Math.max(
+        0,
+        originalSymbolOpacity === 0 ? 0 : originalFillColor.a / originalSymbolOpacity ?? 1
+      )
+    );
     const fromFillOpacity = fromFillColor.a ?? 1;
-    const originalFillOpacity = originalFillColor.a ?? 1;
+
     const newFillColourOpacity =
       fromFillOpacity + (originalFillOpacity * to.opacity - fromFillOpacity) * progress;
 
@@ -352,10 +364,13 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
       newFillColourOpacity,
     ]);
 
-    if (originalOutline?.color) {
+    if (isDefined(originalOutline?.color)) {
       const fromOutlineColor = fromOutline?.color ?? Color.fromArray([0, 0, 0, 1]);
       const fromOutlineOpacity = fromOutline.color.a;
-      const originalOutlineOpacity = originalOutline.color?.a ?? 1;
+      const originalOutlineOpacity = Math.min(
+        1,
+        Math.max(0, originalSymbolOpacity === 0 ? 0 : originalOutline.color?.a ?? 1)
+      );
       const newOutlineColourOpacity =
         fromOutlineOpacity + (originalOutlineOpacity * to.opacity - fromOutlineOpacity) * progress;
 
@@ -371,6 +386,7 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
   return sym;
 };
 
+/** A utility for updating a picture symbol point marker symbol on each animation step. */
 export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymbol> = (
   progress: number,
   fromSymbol: __esri.PictureMarkerSymbol,
@@ -381,16 +397,16 @@ export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymb
   const { height: originalHeight, width: originalWidth, url: originalUrl } = originalSymbol;
   const { height: fromHeight, width: fromWidth, angle: fromAngle, url: fromUrl } = fromSymbol;
 
-  if (to.scale) {
+  if (isDefined(to.scale)) {
     sym.width = fromWidth + (originalWidth * to.scale - fromWidth) * progress;
     sym.height = fromHeight + (originalHeight * to.scale - fromHeight) * progress;
   }
 
-  if (to.rotate != undefined && !isNaN(to.rotate)) {
+  if (isDefined(to.rotate)) {
     sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
   }
 
-  if (to.opacity) {
+  if (isDefined(to.opacity)) {
     const encodedurl = getImageAsBase64(originalUrl);
     const originalOpacity = (originalSymbol as IPictureMarkerWithOpacity).opacity ?? 1;
     if (encodedurl) {

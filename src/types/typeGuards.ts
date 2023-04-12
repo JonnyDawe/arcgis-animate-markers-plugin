@@ -1,4 +1,4 @@
-import { AnimatableLayerView, IPictureMarkerWithOpacity } from "./index";
+import { AnimatableLayerView } from "./index";
 
 export const isGraphicsLayerView = (
   layerView: AnimatableLayerView
@@ -6,8 +6,6 @@ export const isGraphicsLayerView = (
   return layerView.layer.type === "graphics";
 };
 
-export const isPictureMarkerWithOpacity = (
-  symbol: __esri.Symbol
-): symbol is IPictureMarkerWithOpacity => {
-  return (symbol as IPictureMarkerWithOpacity).opacity !== undefined;
-};
+export function isDefined<T>(value: T | undefined | null): value is T {
+  return value !== undefined && value !== null;
+}

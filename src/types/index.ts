@@ -76,3 +76,7 @@ export interface IGraphicWithUID extends __esri.Graphic {
 export interface IPictureMarkerWithOpacity extends __esri.PictureMarkerSymbol {
   opacity: number;
 }
+
+export interface ISimpleMarkerWithOpacity extends __esri.SimpleMarkerSymbol {
+  opacity: number;
+}

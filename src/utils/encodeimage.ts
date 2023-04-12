@@ -28,11 +28,7 @@ export function getImageAsBase64(url: string): string | null {
   if (cachedImage) {
     return cachedImage;
   } else {
-    try {
-      generateBase64Image(url);
-    } catch (error) {
-      console.error(`Failed to get image as base64: ${error}`);
-    }
+    generateBase64Image(url);
     return null;
   }
 }
