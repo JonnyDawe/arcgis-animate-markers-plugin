@@ -26,6 +26,7 @@ export interface IAnimationProps {
 export interface IAnimatableSymbolProps {
   scale?: number;
   rotate?: number;
+  opacity?: number;
 }
 
 export type onSymbolAnimationStep<T extends AnimatableSymbol> = (
@@ -70,4 +71,12 @@ export interface IAnimatedGraphic extends __esri.Graphic {
 
 export interface IGraphicWithUID extends __esri.Graphic {
   uid: number;
+}
+
+export interface IPictureMarkerWithOpacity extends __esri.PictureMarkerSymbol {
+  opacity: number;
+}
+
+export interface ISimpleMarkerWithOpacity extends __esri.SimpleMarkerSymbol {
+  opacity: number;
 }

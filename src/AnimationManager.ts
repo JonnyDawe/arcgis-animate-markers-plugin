@@ -57,6 +57,21 @@ export class SymbolAnimationManager {
     this.animationGraphicsLayer = this.setupAnimatedGraphicsLayer(layerView);
   }
 
+  private get isAnimatedGraphicsLayerView(): boolean {
+    return isGraphicsLayerView(this.parentLayerView);
+  }
+
+  /**
+   * get or setup a new grahics layer view for storing and or adding animated symbols.
+   *
+   * In the case of a graphics layerview features are directly manipulated within the layer.
+   *
+   * For other types of layerview a new graphics layer is added above the parent layer and used
+   * to contain the graphics for manipulation.
+   *
+   * @param layerView - a layerview that can be animated.
+   * @returns graphics layerview
+   */
   private setupAnimatedGraphicsLayer(layerView: AnimatableLayerView): __esri.GraphicsLayer {
     if (isGraphicsLayerView(layerView)) {
       return layerView.layer as __esri.GraphicsLayer;
@@ -83,8 +98,42 @@ export class SymbolAnimationManager {
         filter: new FeatureFilter({ where: "1<>1" }),
       });
 
+      this.addGraphicsLayerWatchers(newAnimationGraphicsLayer);
       return newAnimationGraphicsLayer;
     }
+  }
+
+  /**
+   * watch addition and removal of graphics to the animation graphics layer to ensure the
+   * list of filtered features from the feature layer is kept up to date.
+   *
+   * @param graphicsLayer
+   */
+  private addGraphicsLayerWatchers(graphicsLayer: __esri.GraphicsLayer) {
+    /** This logic tries to reduce flicker when removing points by preventing
+     * the current feature from being removed until slightly after the graphic is removed
+     * from the feature filter.
+     */
+    graphicsLayer.graphics.on("before-remove", e => {
+      const removedGraphic = e.item as IAnimatedGraphic;
+      if (this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId()) === false) {
+        return;
+      }
+      if (!removedGraphic.symbolAnimation.isOverlay) {
+        this.removeExcludedFeature(removedGraphic);
+      }
+      e.preventDefault();
+      window.requestAnimationFrame(() => {
+        graphicsLayer.remove(removedGraphic);
+      });
+    });
+
+    graphicsLayer.graphics.on("before-add", e => {
+      const addedGraphic = e.item as IAnimatedGraphic;
+      if (!addedGraphic.symbolAnimation.isOverlay) {
+        this.addExcludedFeature(addedGraphic);
+      }
+    });
   }
 
   private addExcludedFeature(graphic: Graphic) {
@@ -161,11 +210,13 @@ export class SymbolAnimationManager {
     easingConfig = { type: "spring", options: springConfig.molasses },
     isOverlay = false,
     animationId,
+    opacity,
   }: {
     graphic: __esri.Graphic;
     easingConfig?: AnimationEasingConfig;
     isOverlay?: boolean;
     animationId?: string;
+    opacity?: number;
   }): IAnimatedGraphic {
     const uniqueGraphicId = this.getUniqueId({
       graphic,
@@ -176,24 +227,31 @@ export class SymbolAnimationManager {
       return this.getAnimatedGraphic({ animationId: uniqueGraphicId }) as IAnimatedGraphic;
     }
 
+    if (opacity) {
+      // user input opacity value
+      // clamp opacity value between 0 and 1.
+      opacity = Math.min(1, Math.max(0, opacity));
+    } else {
+      // get the opacity of the parent layer view.
+      // - If it is a graphics layer then we are directly adjusting a graphic from the parent layer
+      // meaning it already has an opacity matching the layer.
+      // - Otherwise we need to ensure a new graphic has an opacity matching the parent layer when it is added
+      opacity = this.isAnimatedGraphicsLayerView ? 1 : this.parentLayerView.layer.opacity;
+    }
+
     const newAnimatedGraphic = AnimatedSymbol.createAnimatedGraphic({
       graphic,
       easingConfig,
       id: uniqueGraphicId,
+      isOverlay,
+      opacity,
     });
 
     // add the graphic to the lookup
     this.animatedGraphics[uniqueGraphicId] = newAnimatedGraphic;
 
-    if (isGraphicsLayerView(this.parentLayerView) && !isOverlay) {
-      // directly manipulate the graphic.
-    } else {
-      // make a new animated graphic and add it to a new graphics layer.
+    if (this.isAnimatedGraphicsLayerView === false || isOverlay) {
       this.animationGraphicsLayer.add(newAnimatedGraphic);
-
-      if (!isOverlay) {
-        this.addExcludedFeature(graphic);
-      }
     }
 
     return newAnimatedGraphic;
@@ -214,20 +272,9 @@ export class SymbolAnimationManager {
         animationId: uniqueGraphicId,
       }) as IAnimatedGraphic;
 
-      if (
-        isGraphicsLayerView(this.parentLayerView) &&
-        animatedGraphic.symbolAnimation.isOverlay === false
-      ) {
-        // reset the graphic symbol.
-        animatedGraphic.symbolAnimation.resetSymbol();
-      } else {
-        if (animatedGraphic.symbolAnimation.isOverlay === false) {
-          this.removeExcludedFeature(animatedGraphic);
-        }
-
-        window.setTimeout(() => {
-          this.animationGraphicsLayer.remove(animatedGraphic);
-        }, 100);
+      animatedGraphic.symbolAnimation.resetSymbol();
+      if (!this.isAnimatedGraphicsLayerView || animatedGraphic.symbolAnimation.isOverlay === true) {
+        this.animationGraphicsLayer.remove(animatedGraphic);
       }
       delete this.animatedGraphics[uniqueGraphicId];
     }

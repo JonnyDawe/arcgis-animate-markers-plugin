@@ -38,7 +38,9 @@ describe("SymbolAnimationManager", () => {
     featureLayerView = { layer: new FeatureLayer() } as unknown as __esri.FeatureLayerView;
     featureLayerView.layer.objectIdField = "OBJECTID";
     mapView = new MapView();
+  });
 
+  beforeEach(() => {
     graphic = new Graphic({
       geometry: new Point({
         x: 0,
@@ -49,9 +51,6 @@ describe("SymbolAnimationManager", () => {
         color: "red",
       }),
     });
-  });
-
-  beforeEach(() => {
     const mockgetObjectId = vi.fn().mockImplementation(() => {
       return "999";
     });

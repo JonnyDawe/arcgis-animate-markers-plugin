@@ -26,11 +26,10 @@ const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
 module.exports = defineConfig({
   test: {
     environment: "jsdom",
-
-    
   },
   base: "./",
   build: {
+    minify:false,
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
       name: getPackageNameCamelCase(),
@@ -38,7 +37,7 @@ module.exports = defineConfig({
       fileName: (format) => fileName[format],
     },  
     rollupOptions: {
-        external:["@react-spring/web", /@arcgis\/core\/.*/ ],
+        external:["@react-spring/web", /@arcgis\/core\/.*/,"mini-svg-data-uri"],
     }}
   },
 );
