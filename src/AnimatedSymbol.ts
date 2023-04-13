@@ -1,5 +1,4 @@
 import Color from "@arcgis/core/Color.js";
-import Graphic from "@arcgis/core/Graphic";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils.js";
 import { EasingFunction, easings, SpringValue } from "@react-spring/web";
 import svgToMiniDataURI from "mini-svg-data-uri";
@@ -57,7 +56,7 @@ export class AnimatedSymbol {
   public isOverlay: boolean;
 
   readonly easingConfig: AnimationEasingConfig;
-  readonly graphic: Graphic;
+  readonly graphic: __esri.Graphic;
   readonly opacity: number;
   readonly originalSymbol: __esri.Symbol;
 
