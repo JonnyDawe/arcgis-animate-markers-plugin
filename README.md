@@ -63,7 +63,7 @@ const animatedGraphic = this.symbolAnimationManager.makeAnimatableSymbol({
 });
 
 animatedGraphic.symbolAnimation.start({
-  to: { scale: 1.2, rotate: 10 },
+  to: { scale: 1.2, rotate: 10, opacity: 0.5 },
 });
 ```
 
@@ -88,11 +88,11 @@ The MapView associated with the LayerView that will have its point symbols anima
 
 #### layerView _`required`_
 
-The AnimatableLayerView ( FeatureLayerView / GraphicsLayerView / GeoJSONLayerView) that will be animated. 
+The AnimatableLayerView ( FeatureLayerView / GraphicsLayerView / GeoJSONLayerView) that will be animated.
 
 > **Note**
 >
-> - If the AnimatableLayerView is a GraphicsLayer, then the symbols will be modified directly. Any new animated graphics not already in the layer must be added as an overlay. 
+> - If the AnimatableLayerView is a GraphicsLayer, then the symbols will be modified directly. Any new animated graphics not already in the layer must be added as an overlay.
 > - If the layer is of any other animatable type, a new graphics layer will be added on top of the parent layer in order to animate symbols. The symbols from the parent layer will be hidden using a feature effect.
 
 ### Methods
@@ -102,7 +102,7 @@ The AnimatableLayerView ( FeatureLayerView / GraphicsLayerView / GeoJSONLayerVie
 Makes the given graphic animatable.
 
 ```js
-makeAnimatableSymbol({ graphic, easingConfig, isOverlay, animationId }: { graphic: __esri.Graphic; easingConfig?: AnimationEasingConfig; isOverlay?: boolean; animationId?: string; }): IAnimatedGraphic
+makeAnimatableSymbol({ graphic, easingConfig, isOverlay, animationId, opacity }: { graphic: __esri.Graphic; easingConfig?: AnimationEasingConfig; isOverlay?: boolean; animationId?: string; opacity?: number;}): IAnimatedGraphic
 ```
 
 ##### graphic _`required`_
@@ -142,6 +142,14 @@ The isOverlay parameter is an optional boolean value that specifies whether the 
 ##### animationId _`optional`_
 
 The animationId parameter is an optional string value that specifies the ID of the animation. If an animated graphic with the same graphic and animationId already exists, it is returned instead of creating a new one.
+
+##### opacity _`optional`_
+
+The opacity parameter is an optional number value between 0 and 1 that specifies the initial opacity at which to create the animated symbol. If not specified, the opacity will match that of the parent layer.
+
+> **Note**
+>
+> - opacity is only supported for simple marker and picture symbols.
 
 ##### Animated Graphic _`returns`_
 
@@ -202,11 +210,13 @@ static createAnimatedGraphic({
   easingConfig,
   id,
   isOverlay = false,
+  opacity = 1
 }: {
   graphic: __esri.Graphic;
   easingConfig: AnimationEasingConfig;
   id: string;
   isOverlay?: boolean;
+  opacity?: number
 }): IAnimatedGraphic
 ```
 
@@ -243,7 +253,7 @@ stop();
 
 #### resetSymbol
 
-Reset the symbol completely to its original symbol.
+Reset the symbol completely to its original symbol. If there is an animation currently running then this will also be stopped.
 
 ```js
 resetSymbol();
@@ -287,11 +297,13 @@ The IAnimatableSymbolProps interface defines the properties that can be animated
 interface IAnimatableSymbolProps {
   scale?: number;
   rotate?: number;
+  opacity?: number; // range 0 to 1
 }
 ```
 
 - `scale` _`optional`_ (number): A number that represents the new scale of the symbol. If not provided, the scale will not change.
 - `rotate` _`optional`_ (number) : A number that represents the new geographic rotation (rotation clockwise) of the symbol in degrees . If not provided, the rotation will not change.
+- `opacity` _`optional`_ (number) : A number that represents the new opacity of the symbol. If not provided, the opacity will not change.
 
 #### onSymbolAnimationStep
 
