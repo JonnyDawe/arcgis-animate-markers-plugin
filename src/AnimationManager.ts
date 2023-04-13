@@ -272,10 +272,8 @@ export class SymbolAnimationManager {
         animationId: uniqueGraphicId,
       }) as IAnimatedGraphic;
 
-      if (this.isAnimatedGraphicsLayerView && animatedGraphic.symbolAnimation.isOverlay === false) {
-        // reset the graphic symbol.
-        animatedGraphic.symbolAnimation.resetSymbol();
-      } else {
+      animatedGraphic.symbolAnimation.resetSymbol();
+      if (!this.isAnimatedGraphicsLayerView || animatedGraphic.symbolAnimation.isOverlay === true) {
         this.animationGraphicsLayer.remove(animatedGraphic);
       }
       delete this.animatedGraphics[uniqueGraphicId];
