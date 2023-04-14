@@ -6,11 +6,9 @@
     "type": "git",
     "url": "git+https://github.com/JonnyDawe/arcgis-animate-markers-plugin.git"
   },
-  "main": "./dist/arcgis-animate-markers-plugin.cjs",
   "module": "./dist/arcgis-animate-markers-plugin.mjs",
   "exports": {
     ".": {
-      "require": "./dist/arcgis-animate-markers-plugin.cjs",
       "import": "./dist/arcgis-animate-markers-plugin.mjs",
       "module": "./dist/arcgis-animate-markers-plugin.mjs"
     }
