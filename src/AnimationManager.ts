@@ -1,3 +1,4 @@
+import * as reactiveUtils from "@arcgis/core/core/reactiveUtils.js";
 import Graphic from "@arcgis/core/Graphic";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
@@ -123,9 +124,14 @@ export class SymbolAnimationManager {
         this.removeExcludedFeature(removedGraphic);
       }
       e.preventDefault();
-      window.requestAnimationFrame(() => {
-        graphicsLayer.remove(removedGraphic);
-      });
+
+      reactiveUtils
+        .whenOnce(() => {
+          return !this.mapView.updating;
+        })
+        .then(() => {
+          graphicsLayer.remove(removedGraphic);
+        });
     });
 
     graphicsLayer.graphics.on("before-add", e => {
