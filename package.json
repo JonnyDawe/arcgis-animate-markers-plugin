@@ -33,26 +33,26 @@
     "@react-spring/web": "^9.7.1"
   },
   "devDependencies": {
-    "@types/jsdom": "^20.0.1",
-    "@types/node": "^18.11.18",
-    "@types/react": "^18.0.35",
-    "@typescript-eslint/eslint-plugin": "^5.48.2",
-    "@typescript-eslint/parser": "^5.48.2",
-    "@vitest/coverage-c8": "^0.29.7",
-    "dts-bundle-generator": "^7.1.0",
+    "@types/jsdom": "^21.1.1",
+    "@types/node": "^18.17.3",
+    "@types/react": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "@vitest/coverage-c8": "^0.29.8",
+    "dts-bundle-generator": "^7.2.0",
     "eslint": "^8.32.0",
     "eslint-config-prettier": "^8.6.0",
-    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-import": "^2.28.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-simple-import-sort": "^7.0.0",
     "husky": "^8.0.3",
-    "jsdom": "^21.1.1",
+    "jsdom": "^21.1.2",
     "lint-staged": "^13.1.0",
     "prettier": "^2.8.3",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.4",
-    "vite": "^4.0.4",
-    "vitest": "^0.29.7"
+    "vite": "^4.4.8",
+    "vitest": "^0.34.1"
   },
   "dependencies": {
     "mini-svg-data-uri": "^1.4.4"
