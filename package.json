@@ -10,7 +10,8 @@
   "exports": {
     ".": {
       "import": "./dist/arcgis-animate-markers-plugin.mjs",
-      "module": "./dist/arcgis-animate-markers-plugin.mjs"
+      "module": "./dist/arcgis-animate-markers-plugin.mjs",
+      "types": "./dist/index.d.ts"
     }
   },
   "types": "./dist/index.d.ts",
