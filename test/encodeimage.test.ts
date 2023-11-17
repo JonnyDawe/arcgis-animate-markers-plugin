@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, Mock, test, vitest } from "vitest";
+import { beforeEach, describe, expect, test, vitest } from "vitest";
 
 import { generateBase64Image, getImageAsBase64 } from "../src/utils/encodeimage";
 
@@ -76,7 +76,7 @@ describe("getImageAsBase64", () => {
       ok: true,
       blob: () => Promise.resolve(blob),
     });
-    await getImageAsBase64("https://example.com/image.jpg");
+    getImageAsBase64("https://example.com/image.jpg");
     await new Promise(resolve => setTimeout(resolve, 1000));
     const base64 = await getImageAsBase64("https://example.com/image.jpg");
     expect(base64).not.toBeNull();
