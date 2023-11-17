@@ -1,21 +1,27 @@
-import Color from "@arcgis/core/Color.js";
-import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils.js";
-import { EasingFunction, easings, SpringValue } from "@react-spring/web";
-import svgToMiniDataURI from "mini-svg-data-uri";
+import { Spring } from "wobble";
 
 import {
   AnimatableSymbol,
   AnimationEasingConfig,
-  easingTypes,
-  IAnimatableSymbolProps,
+  EasingConfig,
   IAnimatedGraphic,
   IAnimationProps,
   IPictureMarkerWithOpacity,
   ISimpleMarkerWithOpacity,
   onSymbolAnimationStep,
+  SpringConfig,
 } from "./types";
-import { isDefined } from "./types/typeGuards";
-import { getImageAsBase64 } from "./utils/encodeimage";
+import {
+  updateCIMSymbolPointMarker,
+  updatePictureMarker,
+  updateSimpleMarker,
+} from "./updateMarkers";
+import easingsFunctions, { EasingFunction, easingTypes } from "./utils/easingsFunctions";
+
+/** To do:
+ *
+ * - Pull out common utility functions for updating symbols into a seperate file.
+ */
 
 /**
  * Class representing an animated symbol.
@@ -52,9 +58,8 @@ export class AnimatedSymbol {
     return graphic as IAnimatedGraphic;
   }
 
-  public id: string;
-  public isOverlay: boolean;
-
+  readonly id: string;
+  readonly isOverlay: boolean;
   readonly easingConfig: AnimationEasingConfig;
   readonly graphic: __esri.Graphic;
   readonly opacity: number;
@@ -140,7 +145,19 @@ export class AnimatedSymbol {
    * @param animationProps - The animation properties.
    */
   public start(animationProps: IAnimationProps): void {
-    this.animateSymbolOnStep(animationProps, animationProps.onStep ?? this.animateMarkerOnStep);
+    if (this.easingConfig.type === "spring") {
+      this.animateSymbolWithSpringEasing(
+        animationProps,
+        this.easingConfig.options,
+        animationProps.onStep ?? this.animateMarkerOnStep
+      );
+    } else {
+      this.animateSymbolWithStandardEasing(
+        animationProps,
+        this.easingConfig.options,
+        animationProps.onStep ?? this.animateMarkerOnStep
+      );
+    }
   }
 
   /**
@@ -183,19 +200,76 @@ export class AnimatedSymbol {
    * @param animationProps - The animation properties.
    * @param onStep - The onSymbolAnimationStep function to use.
    */
-  private animateSymbolOnStep(
+  private animateSymbolWithSpringEasing(
     animationProps: IAnimationProps,
+    springConfig: SpringConfig,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
     // Clone the starting symbol.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fromSymbol = (this.graphic.symbol as any).clone();
 
-    // initialise the spring value if using spring easing.
-    const springEasing =
-      this.easingConfig.type === "spring"
-        ? new SpringValue(0, { to: 1, config: this.easingConfig.options })
-        : null;
+    const springAnimator = new Spring({
+      restDisplacementThreshold: 0.01,
+      ...springConfig,
+      fromValue: 0,
+      toValue: 1,
+    });
+
+    const cleanup = () => {
+      springAnimator.removeAllListeners();
+    };
+
+    this.stop(); // stop running animations
+    let abort = false; // set abort flag to false
+
+    springAnimator.onStart(() => {
+      animationProps?.onStart?.();
+    });
+
+    springAnimator.onStop(() => {
+      if (!abort) {
+        animationProps?.onFinish?.();
+        return;
+      }
+      cleanup();
+    });
+
+    springAnimator.onUpdate(spring => {
+      // stop immediately if aborted
+      if (abort) {
+        springAnimator.stop();
+        return;
+      }
+
+      this.graphic.symbol = onStep(
+        spring.currentValue,
+        fromSymbol,
+        animationProps.to ?? {},
+        this.originalSymbol
+      );
+    });
+
+    this.abortCurrentAnimation = () => {
+      abort = true;
+    };
+
+    springAnimator.start();
+  }
+
+  /**
+   * Animates the symbol on each step of the animation.
+   * @param animationProps - The animation properties.
+   * @param onStep - The onSymbolAnimationStep function to use.
+   */
+  private animateSymbolWithStandardEasing(
+    animationProps: IAnimationProps,
+    { duration, easingFunction }: EasingConfig,
+    onStep: onSymbolAnimationStep<AnimatableSymbol>
+  ) {
+    // Clone the starting symbol.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fromSymbol = (this.graphic.symbol as any).clone();
 
     this.stop(); // stop running animations
     animationProps?.onStart?.(); // fire onStart callback
@@ -214,7 +288,7 @@ export class AnimatedSymbol {
       }
 
       // check if animation has reached final frame
-      if (this.isAnimationEnded(elapsed, springEasing)) {
+      if (elapsed > duration) {
         // ensure final symbol state target is reached (progress = 1)
         this.graphic.symbol = onStep(1, fromSymbol, animationProps.to ?? {}, this.originalSymbol);
 
@@ -225,7 +299,7 @@ export class AnimatedSymbol {
 
       // progress aniamtion
       this.graphic.symbol = onStep(
-        this.calculateAnimationProgress(elapsed, springEasing),
+        this.calculateEasingProgress(easingFunction, elapsed, duration),
         fromSymbol,
         animationProps.to ?? {},
         this.originalSymbol
@@ -246,187 +320,16 @@ export class AnimatedSymbol {
     this.graphic.symbol = this.originalSymbol;
   }
 
-  private calculateEasingProgress(easing: easingTypes | EasingFunction = "linear", t: number) {
+  private calculateEasingProgress(
+    easing: easingTypes | EasingFunction = "linear",
+    elapsed: number,
+    duration: number
+  ) {
+    const t = elapsed / duration;
     if (typeof easing === "function") {
       return easing(t);
     } else {
-      return easings[easing](t);
+      return easingsFunctions[easing](t);
     }
   }
-
-  private calculateAnimationProgress(
-    elapsed: number,
-    springEasing: SpringValue<number> | null
-  ): number {
-    let animationProgress = 0;
-    switch (this.easingConfig.type) {
-      case "easing": {
-        animationProgress = this.calculateEasingProgress(
-          this.easingConfig.options?.easingFunction,
-          elapsed / (this.easingConfig.options?.duration ?? 0)
-        );
-
-        break;
-      }
-      case "spring": {
-        if (springEasing) {
-          springEasing.advance(elapsed);
-          animationProgress = springEasing?.get();
-          break;
-        }
-      }
-    }
-    return animationProgress;
-  }
-
-  private isAnimationEnded(elapsed: number, springEasing: SpringValue<number> | null): boolean {
-    return (
-      (this.easingConfig.type === "easing" &&
-        elapsed > (this.easingConfig.options?.duration ?? 0)) ||
-      springEasing?.idle === true
-    );
-  }
-}
-
-/** A utility for updating a CIM symbol point marker symbol on each animation step. */
-export const updateCIMSymbolPointMarker: onSymbolAnimationStep<__esri.CIMSymbol> = (
-  progress: number,
-  fromSymbol: __esri.CIMSymbol,
-  to: IAnimatableSymbolProps,
-  originalSymbol: __esri.CIMSymbol
-): __esri.CIMSymbol => {
-  const sym = fromSymbol.clone();
-  const originalSize = cimSymbolUtils.getCIMSymbolSize(originalSymbol);
-  const fromSize = cimSymbolUtils.getCIMSymbolSize(sym);
-  const fromAngle = cimSymbolUtils.getCIMSymbolRotation(sym, true) % 360;
-
-  if (isDefined(to.scale)) {
-    cimSymbolUtils.scaleCIMSymbolTo(
-      sym,
-      fromSize + (originalSize * to.scale - fromSize) * progress
-    );
-  }
-
-  if (isDefined(to.rotate)) {
-    cimSymbolUtils.applyCIMSymbolRotation(
-      sym,
-      fromAngle + (to.rotate - fromAngle) * progress,
-      true
-    );
-  }
-
-  return sym;
-};
-
-/** A utility for updating a simple marker symbol on each animation step. */
-export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol> = (
-  progress: number,
-  fromSymbol: __esri.SimpleMarkerSymbol,
-  to: IAnimatableSymbolProps,
-  originalSymbol: __esri.SimpleMarkerSymbol
-): __esri.SimpleMarkerSymbol => {
-  const sym = fromSymbol.clone();
-  const { size: originalSize, color: originalFillColor, outline: originalOutline } = originalSymbol;
-  const {
-    size: fromSize,
-    angle: fromAngle,
-    color: fromFillColor,
-    outline: fromOutline,
-  } = fromSymbol;
-
-  if (isDefined(to.scale)) {
-    sym.size = fromSize + (originalSize * to.scale - fromSize) * progress;
-  }
-
-  if (isDefined(to.rotate)) {
-    sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
-  }
-
-  if (isDefined(to.opacity)) {
-    const originalSymbolOpacity = (originalSymbol as ISimpleMarkerWithOpacity).opacity ?? 1;
-    const originalFillOpacity = Math.min(
-      1,
-      Math.max(
-        0,
-        originalSymbolOpacity === 0 ? 0 : originalFillColor.a / originalSymbolOpacity ?? 1
-      )
-    );
-    const fromFillOpacity = fromFillColor.a ?? 1;
-
-    const newFillColourOpacity =
-      fromFillOpacity + (originalFillOpacity * to.opacity - fromFillOpacity) * progress;
-
-    sym.color = Color.fromArray([
-      fromFillColor.r,
-      fromFillColor.g,
-      fromFillColor.b,
-      newFillColourOpacity,
-    ]);
-
-    if (isDefined(originalOutline?.color)) {
-      const fromOutlineColor = fromOutline?.color ?? Color.fromArray([0, 0, 0, 1]);
-      const fromOutlineOpacity = fromOutline.color.a;
-      const originalOutlineOpacity = Math.min(
-        1,
-        Math.max(0, originalSymbolOpacity === 0 ? 0 : originalOutline.color?.a ?? 1)
-      );
-      const newOutlineColourOpacity =
-        fromOutlineOpacity + (originalOutlineOpacity * to.opacity - fromOutlineOpacity) * progress;
-
-      sym.outline.color = Color.fromArray([
-        fromOutlineColor.r,
-        fromOutlineColor.g,
-        fromOutlineColor.b,
-        newOutlineColourOpacity,
-      ]);
-    }
-  }
-
-  return sym;
-};
-
-/** A utility for updating a picture symbol point marker symbol on each animation step. */
-export const updatePictureMarker: onSymbolAnimationStep<__esri.PictureMarkerSymbol> = (
-  progress: number,
-  fromSymbol: __esri.PictureMarkerSymbol,
-  to: IAnimatableSymbolProps,
-  originalSymbol: __esri.PictureMarkerSymbol
-): __esri.PictureMarkerSymbol => {
-  const sym = fromSymbol.clone();
-  const { height: originalHeight, width: originalWidth, url: originalUrl } = originalSymbol;
-  const { height: fromHeight, width: fromWidth, angle: fromAngle, url: fromUrl } = fromSymbol;
-
-  if (isDefined(to.scale)) {
-    sym.width = fromWidth + (originalWidth * to.scale - fromWidth) * progress;
-    sym.height = fromHeight + (originalHeight * to.scale - fromHeight) * progress;
-  }
-
-  if (isDefined(to.rotate)) {
-    sym.angle = fromAngle + (to.rotate - fromAngle) * progress;
-  }
-
-  if (isDefined(to.opacity)) {
-    const encodedurl = getImageAsBase64(originalUrl);
-    const originalOpacity = (originalSymbol as IPictureMarkerWithOpacity).opacity ?? 1;
-    if (encodedurl) {
-      const fromOpacity = Number.parseFloat(
-        extractAttributeValue(fromUrl, "opacity") ?? originalOpacity.toString()
-      );
-      const toOpacity = fromOpacity + (to.opacity - fromOpacity) * progress;
-      const optimizedSVGDataURI = svgToMiniDataURI(
-        `<svg width="${sym.width}" height="${sym.height}" opacity="${toOpacity}" xmlns="http://www.w3.org/2000/svg">
-          <image href="${encodedurl}" width="${sym.width}" height="${sym.height}"/>
-        </svg>`
-      );
-      sym.url = optimizedSVGDataURI;
-    }
-  }
-
-  return sym;
-};
-
-function extractAttributeValue(htmlString: string, attribute: string): string | null {
-  const regex = new RegExp(`${attribute}\\s*=\\s*["']?([^\\s"']*)["']?`);
-  const match = htmlString.match(regex);
-  return match ? match[1] : null;
 }

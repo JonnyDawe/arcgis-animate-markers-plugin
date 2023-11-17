@@ -4,7 +4,6 @@ import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
 import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter";
 import FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
-import { config as springConfig } from "@react-spring/web";
 
 import { AnimatedSymbol } from "./AnimatedSymbol";
 import {
@@ -14,6 +13,7 @@ import {
   IGraphicWithUID,
 } from "./types";
 import { isGraphicsLayerView } from "./types/typeGuards";
+import { SPRING_PRESETS } from "./utils/constants";
 
 /**
  *  This Class manages the animation of symbols on a given
@@ -213,7 +213,7 @@ export class SymbolAnimationManager {
 
   public makeAnimatableSymbol({
     graphic,
-    easingConfig = { type: "spring", options: springConfig.molasses },
+    easingConfig = { type: "spring", options: SPRING_PRESETS.molasses },
     isOverlay = false,
     animationId,
     opacity,

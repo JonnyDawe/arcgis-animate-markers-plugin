@@ -23,7 +23,6 @@ A JavaScript plugin library for animating symbols in the ArcGIS Maps SDK using s
 To use this plugin library, you need to have the following peer dependencies installed:
 
 `ArcGIS Maps SDK for JavaScript`
-`React-spring`
 
 ### Installation
 
@@ -55,8 +54,8 @@ const animatedGraphic = this.symbolAnimationManager.makeAnimatableSymbol({
   easingConfig: {
     type: "spring",
     options: {
-      tension: 280,
-      friction: 40,
+      stiffness: 280,
+      damping: 40,
       mass: 10,
     },
   },
@@ -117,10 +116,9 @@ makeAnimatableSymbol({ graphic, easingConfig, isOverlay, animationId, opacity }:
 // Example - Spring Easing.
 const spring = {
   type: "spring",
-  // See React-Spring Documentation for more details
   options: {
-    tension: 280,
-    friction: 40,
+    stiffness: 280,
+    damping: 40,
     mass: 10
   }
 }
@@ -336,12 +334,12 @@ An interface that defines the configuration for the spring easing function. It h
 ```typescript
 interface ISpringEasingConfig {
   type: "spring";
-  options?: SpringAnimationProps["config"];
+  options: SpringConfig;
 }
 ```
 
 - `type` ("spring"): A string that identifies the easing function as a spring.
-- `options`: AnimationProps["config"]: An object that holds the animation configuration - see the React-Spring Config Options [here](https://www.react-spring.dev/docs/advanced/config#reference)
+- `options`: SpringConfig: An object that holds the animation configuration for the spring, properties such stiffness and damping.
 
 #### IStandardEasingConfig
 
