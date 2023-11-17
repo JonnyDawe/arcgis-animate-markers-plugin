@@ -23,7 +23,6 @@ A JavaScript plugin library for animating symbols in the ArcGIS Maps SDK using s
 To use this plugin library, you need to have the following peer dependencies installed:
 
 `ArcGIS Maps SDK for JavaScript`
-`React-spring`
 
 ### Installation
 

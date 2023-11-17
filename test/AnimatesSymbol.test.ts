@@ -1,6 +1,6 @@
 import Point from "@arcgis/core/geometry/Point";
 import Graphic from "@arcgis/core/Graphic";
-import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol.js";
+import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import { afterEach, beforeEach, describe, expect, Mock, test, vitest } from "vitest";
 
@@ -13,8 +13,6 @@ import {
 } from "../src/types";
 import { updateSimpleMarker } from "../src/updateMarkers";
 import { getImageAsBase64 } from "../src/utils/encodeimage";
-
-vitest.mock("../src/updateMarkers");
 
 describe("AnimatedSymbol", () => {
   const simpleMarkerSymbol: __esri.SimpleMarkerSymbol = new SimpleMarkerSymbol({
