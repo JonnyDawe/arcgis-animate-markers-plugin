@@ -1,21 +1,28 @@
 import Color from "@arcgis/core/Color.js";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils.js";
-import { EasingFunction, easings, SpringValue } from "@react-spring/web";
 import svgToMiniDataURI from "mini-svg-data-uri";
+import { Spring } from "wobble";
 
 import {
   AnimatableSymbol,
   AnimationEasingConfig,
-  easingTypes,
+  EasingConfig,
   IAnimatableSymbolProps,
   IAnimatedGraphic,
   IAnimationProps,
   IPictureMarkerWithOpacity,
   ISimpleMarkerWithOpacity,
   onSymbolAnimationStep,
+  SpringConfig,
 } from "./types";
 import { isDefined } from "./types/typeGuards";
+import easingsFunctions, { EasingFunction, easingTypes } from "./utils/easingsFunctions";
 import { getImageAsBase64 } from "./utils/encodeimage";
+
+/** To do:
+ *
+ * - Pull out common utility functions for updating symbols into a seperate file.
+ */
 
 /**
  * Class representing an animated symbol.
@@ -52,9 +59,8 @@ export class AnimatedSymbol {
     return graphic as IAnimatedGraphic;
   }
 
-  public id: string;
-  public isOverlay: boolean;
-
+  readonly id: string;
+  readonly isOverlay: boolean;
   readonly easingConfig: AnimationEasingConfig;
   readonly graphic: __esri.Graphic;
   readonly opacity: number;
@@ -140,7 +146,19 @@ export class AnimatedSymbol {
    * @param animationProps - The animation properties.
    */
   public start(animationProps: IAnimationProps): void {
-    this.animateSymbolOnStep(animationProps, animationProps.onStep ?? this.animateMarkerOnStep);
+    if (this.easingConfig.type === "spring") {
+      this.animateSymbolWithSpringEasing(
+        animationProps,
+        this.easingConfig.options,
+        animationProps.onStep ?? this.animateMarkerOnStep
+      );
+    } else {
+      this.animateSymbolWithStandardEasing(
+        animationProps,
+        this.easingConfig.options,
+        animationProps.onStep ?? this.animateMarkerOnStep
+      );
+    }
   }
 
   /**
@@ -183,19 +201,76 @@ export class AnimatedSymbol {
    * @param animationProps - The animation properties.
    * @param onStep - The onSymbolAnimationStep function to use.
    */
-  private animateSymbolOnStep(
+  private animateSymbolWithSpringEasing(
     animationProps: IAnimationProps,
+    springConfig: SpringConfig,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
     // Clone the starting symbol.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fromSymbol = (this.graphic.symbol as any).clone();
 
-    // initialise the spring value if using spring easing.
-    const springEasing =
-      this.easingConfig.type === "spring"
-        ? new SpringValue(0, { to: 1, config: this.easingConfig.options })
-        : null;
+    const springAnimator = new Spring({
+      restDisplacementThreshold: 0.01,
+      ...springConfig,
+      fromValue: 0,
+      toValue: 1,
+    });
+
+    const cleanup = () => {
+      springAnimator.removeAllListeners();
+    };
+
+    this.stop(); // stop running animations
+    let abort = false; // set abort flag to false
+
+    springAnimator.onStart(() => {
+      animationProps?.onStart?.();
+    });
+
+    springAnimator.onStop(() => {
+      if (!abort) {
+        animationProps?.onFinish?.();
+        return;
+      }
+      cleanup();
+    });
+
+    springAnimator.onUpdate(spring => {
+      // stop immediately if aborted
+      if (abort) {
+        springAnimator.stop();
+        return;
+      }
+
+      this.graphic.symbol = onStep(
+        spring.currentValue,
+        fromSymbol,
+        animationProps.to ?? {},
+        this.originalSymbol
+      );
+    });
+
+    this.abortCurrentAnimation = () => {
+      abort = true;
+    };
+
+    springAnimator.start();
+  }
+
+  /**
+   * Animates the symbol on each step of the animation.
+   * @param animationProps - The animation properties.
+   * @param onStep - The onSymbolAnimationStep function to use.
+   */
+  private animateSymbolWithStandardEasing(
+    animationProps: IAnimationProps,
+    { duration, easingFunction }: EasingConfig,
+    onStep: onSymbolAnimationStep<AnimatableSymbol>
+  ) {
+    // Clone the starting symbol.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fromSymbol = (this.graphic.symbol as any).clone();
 
     this.stop(); // stop running animations
     animationProps?.onStart?.(); // fire onStart callback
@@ -214,7 +289,7 @@ export class AnimatedSymbol {
       }
 
       // check if animation has reached final frame
-      if (this.isAnimationEnded(elapsed, springEasing)) {
+      if (elapsed > duration) {
         // ensure final symbol state target is reached (progress = 1)
         this.graphic.symbol = onStep(1, fromSymbol, animationProps.to ?? {}, this.originalSymbol);
 
@@ -225,7 +300,7 @@ export class AnimatedSymbol {
 
       // progress aniamtion
       this.graphic.symbol = onStep(
-        this.calculateAnimationProgress(elapsed, springEasing),
+        this.calculateEasingProgress(easingFunction, elapsed, duration),
         fromSymbol,
         animationProps.to ?? {},
         this.originalSymbol
@@ -246,45 +321,17 @@ export class AnimatedSymbol {
     this.graphic.symbol = this.originalSymbol;
   }
 
-  private calculateEasingProgress(easing: easingTypes | EasingFunction = "linear", t: number) {
+  private calculateEasingProgress(
+    easing: easingTypes | EasingFunction = "linear",
+    elapsed: number,
+    duration: number
+  ) {
+    const t = elapsed / duration;
     if (typeof easing === "function") {
       return easing(t);
     } else {
-      return easings[easing](t);
+      return easingsFunctions[easing](t);
     }
-  }
-
-  private calculateAnimationProgress(
-    elapsed: number,
-    springEasing: SpringValue<number> | null
-  ): number {
-    let animationProgress = 0;
-    switch (this.easingConfig.type) {
-      case "easing": {
-        animationProgress = this.calculateEasingProgress(
-          this.easingConfig.options?.easingFunction,
-          elapsed / (this.easingConfig.options?.duration ?? 0)
-        );
-
-        break;
-      }
-      case "spring": {
-        if (springEasing) {
-          springEasing.advance(elapsed);
-          animationProgress = springEasing?.get();
-          break;
-        }
-      }
-    }
-    return animationProgress;
-  }
-
-  private isAnimationEnded(elapsed: number, springEasing: SpringValue<number> | null): boolean {
-    return (
-      (this.easingConfig.type === "easing" &&
-        elapsed > (this.easingConfig.options?.duration ?? 0)) ||
-      springEasing?.idle === true
-    );
   }
 }
 
