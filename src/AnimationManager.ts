@@ -114,6 +114,7 @@ export class SymbolAnimationManager {
       id: uniqueGraphicId,
       isOverlay,
       opacity,
+      animationManager: this,
     });
 
     this.animatedGraphics[uniqueGraphicId] = newAnimatedGraphic;
@@ -143,7 +144,6 @@ export class SymbolAnimationManager {
       if (!this.isAnimatedGraphicsLayerView || animatedGraphic.symbolAnimation.isOverlay === true) {
         this.animationGraphicsOverlay.remove(animatedGraphic);
       }
-      delete this.animatedGraphics[uniqueGraphicId];
     }
   }
 
@@ -197,8 +197,14 @@ export class SymbolAnimationManager {
       reactiveUtils
         .whenOnce(() => !this.mapView.updating)
         .then(() => {
-          if (this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId()) === false) {
+          if (!this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId())) {
             graphicsLayerOverlay.remove(removedGraphic);
+            delete this.animatedGraphics[
+              this.getUniqueId({
+                graphic: removedGraphic,
+                animationId: removedGraphic.symbolAnimation.id,
+              })
+            ];
           }
         });
     });
@@ -211,7 +217,7 @@ export class SymbolAnimationManager {
     });
   }
 
-  private addExcludedFeature(graphic: Graphic): void {
+  public addExcludedFeature(graphic: __esri.Graphic): void {
     const objectId = graphic.getObjectId();
     if (objectId) {
       this.graphicsObjectIdsToFilter.add(objectId);
@@ -253,6 +259,14 @@ export class SymbolAnimationManager {
     graphic?: __esri.Graphic;
     animationId?: string;
   }): string {
-    return animationId ?? graphic ? this.getUniqueIdFromGraphic(graphic as __esri.Graphic) : "";
+    if (animationId) {
+      return animationId;
+    }
+
+    if (graphic) {
+      return this.getUniqueIdFromGraphic(graphic);
+    }
+
+    return "";
   }
 }

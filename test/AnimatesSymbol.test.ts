@@ -112,7 +112,7 @@ describe("AnimatedSymbol", () => {
     });
 
     test("should call animateSymbol with animationProps and a correct onStep function", () => {
-      animatedSymbol.start({});
+      animatedSymbol.start({ to: {} });
       expect(mockAnimateSymbol).toHaveBeenCalledWith(
         {},
         {},
@@ -121,7 +121,7 @@ describe("AnimatedSymbol", () => {
     });
     test("should be able to be called with animationProps and a custom onStep function", () => {
       const mockOnStep = vitest.fn();
-      animatedSymbol.start({ onStep: mockOnStep });
+      animatedSymbol.start({ onStep: mockOnStep, to: { scale: 1 } });
       expect(mockAnimateSymbol).toHaveBeenCalledWith({ onStep: mockOnStep }, {}, mockOnStep);
     });
   });

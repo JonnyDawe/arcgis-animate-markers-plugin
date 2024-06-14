@@ -127,8 +127,10 @@ type SymbolType<T extends AnimatableSymbol> = T extends __esri.SimpleMarkerSymbo
  * The properties of an animation.
  */
 export interface IAnimationProps {
-  to?: IAnimatableSymbolProps;
-  onStep?: onSymbolAnimationStep<AnimatableSymbol>;
+  to: IAnimatableSymbolProps;
   onStart?: () => void;
+  onStep?: onSymbolAnimationStep<AnimatableSymbol>;
   onFinish?: () => void;
+  removeOnComplete?: boolean;
+  yoyo?: boolean;
 }
