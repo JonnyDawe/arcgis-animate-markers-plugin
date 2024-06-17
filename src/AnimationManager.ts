@@ -184,20 +184,35 @@ export class SymbolAnimationManager {
 
   private addGraphicsLayerWatchers(graphicsLayerOverlay: __esri.GraphicsLayer): void {
     graphicsLayerOverlay.graphics.on("before-remove", e => {
+      const doNotRemove = () => e.preventDefault();
       const removedGraphic = e.item as IAnimatedGraphic;
-      if (!this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId())) {
+      const { isOverlay, isAnimating, id: animationId } = removedGraphic.symbolAnimation;
+
+      if (!this.hasAnimatedGraphic({ graphic: removedGraphic, animationId })) {
         return;
       }
 
-      if (!removedGraphic.symbolAnimation.isOverlay) {
-        this.removeExcludedFeature(removedGraphic);
+      if (isOverlay) {
+        delete this.animatedGraphics[
+          this.getUniqueId({
+            graphic: removedGraphic,
+            animationId: removedGraphic.symbolAnimation.id,
+          })
+        ];
+        return;
+      } else {
+        if (isAnimating) {
+          doNotRemove();
+          return;
+        } else {
+          this.removeExcludedFeature(removedGraphic);
+        }
       }
-      e.preventDefault();
 
       reactiveUtils
         .whenOnce(() => !this.mapView.updating)
         .then(() => {
-          if (!this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId())) {
+          if (!isAnimating) {
             graphicsLayerOverlay.remove(removedGraphic);
             delete this.animatedGraphics[
               this.getUniqueId({

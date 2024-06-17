@@ -66,6 +66,11 @@ export class AnimatedSymbol {
   readonly originalSymbol: __esri.Symbol;
   readonly animationManager: SymbolAnimationManager;
 
+  private _isAnimating = false;
+  public get isAnimating(): boolean {
+    return this._isAnimating;
+  }
+
   private abortCurrentAnimation: () => void = () => {
     return;
   };
@@ -134,8 +139,8 @@ export class AnimatedSymbol {
   }
 
   public start(animationProps: IAnimationProps): void {
-    this.animationManager.addExcludedFeature(this.graphic);
     this.stop();
+    this._isAnimating = true;
     const onStep = animationProps.onStep ?? this.getAnimationStepFunction();
 
     if (this.easingConfig.type === "spring") {
@@ -146,6 +151,7 @@ export class AnimatedSymbol {
   }
 
   public stop(): void {
+    this._isAnimating = false;
     this.abortCurrentAnimation();
   }
   /**

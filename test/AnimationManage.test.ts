@@ -310,13 +310,17 @@ describe("SymbolAnimationManager", () => {
 
   describe("removeAllAnimatedGraphics", () => {
     test("removes all animated graphics", () => {
-      manager = new SymbolAnimationManager({ layerView: graphicsLayerView, mapView });
+      manager = new SymbolAnimationManager({
+        layerView: featureLayerView,
+        mapView,
+      });
 
       vi.spyOn(manager, "removeAnimatedGraphic");
-      manager.makeAnimatableSymbol({ graphic, animationId: "test" });
+      manager.makeAnimatableSymbol({ graphic, animationId: "test", isOverlay: true });
       manager.makeAnimatableSymbol({
         graphic: graphic.clone(),
         animationId: "anotherTest",
+        isOverlay: true,
       });
       expect(manager.getAllAnimatedGraphics().length).toBe(2);
       manager.removeAllAnimatedGraphics();
