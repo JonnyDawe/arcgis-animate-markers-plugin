@@ -45,7 +45,7 @@ export class AnimatedSymbol {
     id: string;
     isOverlay?: boolean;
     opacity?: number;
-    animationManager: SymbolAnimationManager;
+    animationManager?: SymbolAnimationManager;
   }): IAnimatedGraphic {
     (graphic as IAnimatedGraphic).symbolAnimation = new AnimatedSymbol({
       graphic,
@@ -64,7 +64,7 @@ export class AnimatedSymbol {
   readonly graphic: __esri.Graphic;
   readonly opacity: number;
   readonly originalSymbol: __esri.Symbol;
-  readonly animationManager: SymbolAnimationManager;
+  readonly animationManager?: SymbolAnimationManager;
 
   private _isAnimating = false;
   public get isAnimating(): boolean {
@@ -95,7 +95,7 @@ export class AnimatedSymbol {
     id: string;
     isOverlay?: boolean;
     opacity?: number;
-    animationManager: SymbolAnimationManager;
+    animationManager?: SymbolAnimationManager;
   }) {
     this.easingConfig = easingConfig;
     this.id = id;
@@ -105,9 +105,7 @@ export class AnimatedSymbol {
     this.opacity = opacity;
     this.animationManager = animationManager;
 
-    if (opacity !== 1) {
-      graphic.symbol = this.applyOpacityToSymbol(opacity);
-    }
+    graphic.symbol = this.applyOpacityToSymbol(opacity);
   }
 
   private cloneSymbol(symbol: __esri.Symbol): __esri.Symbol {
@@ -119,14 +117,24 @@ export class AnimatedSymbol {
     switch (this.originalSymbol.type) {
       case "simple-marker":
         (this.originalSymbol as ISimpleMarkerWithOpacity).opacity = opacity;
+        if (opacity === 1) {
+          return this.originalSymbol;
+        }
+
         return updateSimpleMarker(
           1,
           this.originalSymbol as __esri.SimpleMarkerSymbol,
           { opacity },
           this.originalSymbol as __esri.SimpleMarkerSymbol
         );
+
       case "picture-marker":
         (this.originalSymbol as IPictureMarkerWithOpacity).opacity = opacity;
+
+        if (opacity === 1) {
+          return this.originalSymbol;
+        }
+
         return updatePictureMarker(
           1,
           this.originalSymbol as __esri.PictureMarkerSymbol,
@@ -214,6 +222,7 @@ export class AnimatedSymbol {
   private handleAnimationComplete(animationProps: IAnimationProps, aborted = false) {
     if (!aborted) {
       animationProps?.onFinish?.();
+      this._isAnimating = false;
       if (animationProps.removeOnComplete) {
         this.removeGraphic();
       }
@@ -223,7 +232,11 @@ export class AnimatedSymbol {
   }
 
   private removeGraphic() {
-    this.animationManager.removeAnimatedGraphic({ graphic: this.graphic, animationId: this.id });
+    if (this.animationManager) {
+      this.animationManager.removeAnimatedGraphic({ graphic: this.graphic, animationId: this.id });
+    } else {
+      this.graphic.destroy();
+    }
   }
 
   private updateSymbol(
@@ -254,6 +267,7 @@ export class AnimatedSymbol {
   ) {
     let startTimeStamp: number | null = null;
     let abort = false;
+    animationProps.onStart?.();
 
     const step: FrameRequestCallback = timestamp => {
       if (!startTimeStamp) startTimeStamp = timestamp;
