@@ -32,6 +32,7 @@ export class SymbolAnimationManager {
   private mapView: __esri.MapView;
   private animatedGraphics: Record<string, IAnimatedGraphic>;
   private graphicsObjectIdsToFilter: Set<number> = new Set();
+  private layerOrderListener: IHandle | undefined;
 
   // Public Properties
   readonly parentLayerView: AnimatableLayerView;
@@ -149,6 +150,7 @@ export class SymbolAnimationManager {
 
   public destroy(): void {
     this.removeAllAnimatedGraphics();
+    this.layerOrderListener?.remove();
     this.mapView.map.remove(this.animationGraphicsOverlay);
   }
 
@@ -171,6 +173,26 @@ export class SymbolAnimationManager {
         animationGraphicsOverlay,
         this.mapView.layerViews.findIndex(item => item === layerView) + 1
       );
+
+      this.layerOrderListener = reactiveUtils.watch(
+        () => this.mapView.map.allLayers,
+        allLayers => {
+          const layerIndex = allLayers.findIndex(layer => layer.id === animationGraphicsOverlay.id);
+          const parentLayerIndex = allLayers.findIndex(
+            layer => layer.id === this.parentLayerView.layer.id
+          );
+          if (layerIndex > parentLayerIndex + 1) {
+            this.mapView.map.reorder(animationGraphicsOverlay, parentLayerIndex + 1);
+          }
+        }
+      );
+
+      // reactiveUtils.watch(
+      //   () => this.mapView.map.allLayers.map(layer => layer.id),
+      //   ids => {
+      //     console.log(`FeatureLayer IDs ${ids}`);
+      //   }
+      // );
 
       layerView.featureEffect = new FeatureEffect({
         includedEffect: "opacity(0.001%)",

@@ -22,9 +22,11 @@ const fileName = {
 
 const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
 
-module.exports = defineConfig({
+export default defineConfig({
   test: {
     environment: "jsdom",
+    reporters: ['html']
+
   },
   base: "./",
   build: {
