@@ -1,21 +1,20 @@
-export function throttleAsync<T extends (...args: any[]) => any>(
+export function throttleAsync<T extends (...args: A) => Promise<R>, A extends unknown[], R>(
   func: T,
   wait: number
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
+): (...args: A) => Promise<R> {
   let timerId: number | undefined;
-  let lastArgs: Parameters<T> | undefined;
-  let promise: Promise<ReturnType<T>> | undefined;
+  let lastArgs: A | undefined;
+  let promise: Promise<R> | undefined;
 
   const execute = async () => {
     if (lastArgs) {
       promise = func(...lastArgs);
       lastArgs = undefined;
     }
-
     timerId = undefined;
   };
 
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+  return async (...args: A): Promise<R> => {
     lastArgs = args;
 
     if (!timerId) {
@@ -23,6 +22,11 @@ export function throttleAsync<T extends (...args: any[]) => any>(
       timerId = window.setTimeout(execute, wait);
     }
 
-    return promise!;
+    if (promise) {
+      return promise;
+    } else {
+      // Handle the case where the promise is undefined
+      throw new Error("Promise is undefined.");
+    }
   };
 }

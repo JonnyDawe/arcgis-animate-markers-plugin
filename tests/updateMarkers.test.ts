@@ -2,7 +2,8 @@ import CIMSymbol from "@arcgis/core/symbols/CIMSymbol";
 import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils";
-import { afterEach, describe, expect, Mock, test, vitest } from "vitest";
+import type { Mock } from "vitest";
+import { afterEach, describe, expect, test, vitest } from "vitest";
 
 import {
   updateCIMSymbolPointMarker,
@@ -37,7 +38,7 @@ describe("update Symbol properties for", () => {
       const encodeImageSpy = vitest.fn().mockImplementation(() => {
         return "testString";
       });
-      (getImageAsBase64 as Mock<any, any>).mockImplementation(() => encodeImageSpy());
+      (getImageAsBase64 as Mock).mockImplementation(() => encodeImageSpy());
 
       const symb = updatePictureMarker(
         0.5,
@@ -121,7 +122,7 @@ describe("update Symbol properties for", () => {
                         type: "CIMSolidStroke",
                         width: 5,
                         color: [240, 94, 35, 255],
-                      } as any,
+                      } as __esri.CIMSymbolLayer,
                     ],
                   },
                 },

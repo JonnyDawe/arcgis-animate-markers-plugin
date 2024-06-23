@@ -34,7 +34,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui --coverage.enabled=true",
     "test:coverage": "vitest run --coverage",
-    "lint:scripts": "eslint . --ext .ts",
+    "lint": "npx eslint --fix --config eslint.config.mjs './src/**/*.{js,jsx,ts,tsx}' './tests/**/*.{js,jsx,ts,tsx}'",
+    "check-types": "tsc --noEmit -p tsconfig.json",
     "format:scripts": "prettier . --write",
     "format": "npm run format:scripts"
   },

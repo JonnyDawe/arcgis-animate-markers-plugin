@@ -1,4 +1,4 @@
-import { SpringConfig } from "../types";
+import type { SpringConfig } from "../types";
 
 export type SpringPresetKeys = "default" | "gentle" | "wobbly" | "stiff" | "slow" | "molasses";
 

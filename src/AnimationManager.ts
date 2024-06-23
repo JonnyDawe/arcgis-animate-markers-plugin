@@ -30,8 +30,8 @@ import { SPRING_PRESETS } from "./utils/constants";
 export class SymbolAnimationManager {
   // Private Properties
   private mapView: __esri.MapView;
-  private animatedGraphics: Record<string, IAnimatedGraphic>;
-  private graphicsObjectIdsToFilter: Set<number> = new Set();
+  private animatedGraphics: Map<string, IAnimatedGraphic>;
+  private graphicsObjectIdsToFilter = new Set<number>();
   private layerOrderListener: IHandle | undefined;
 
   // Public Properties
@@ -41,7 +41,7 @@ export class SymbolAnimationManager {
   // Constructor
   constructor({ layerView, mapView }: { layerView: AnimatableLayerView; mapView: __esri.MapView }) {
     this.mapView = mapView;
-    this.animatedGraphics = {};
+    this.animatedGraphics = new Map<string, IAnimatedGraphic>();
     this.parentLayerView = layerView;
     this.animationGraphicsOverlay = this.setupAnimatedGraphicsLayer(layerView);
   }
@@ -54,7 +54,7 @@ export class SymbolAnimationManager {
     graphic?: __esri.Graphic;
     animationId?: string;
   }): boolean {
-    return this.animatedGraphics[this.getUniqueId({ graphic, animationId })] !== undefined;
+    return this.animatedGraphics.has(this.getUniqueId({ graphic, animationId }));
   }
 
   public getAnimatedGraphic({
@@ -64,11 +64,11 @@ export class SymbolAnimationManager {
     graphic?: __esri.Graphic;
     animationId?: string;
   }): IAnimatedGraphic | undefined {
-    return this.animatedGraphics[this.getUniqueId({ graphic, animationId })];
+    return this.animatedGraphics.get(this.getUniqueId({ graphic, animationId }));
   }
 
   public getAllAnimatedGraphics(): IAnimatedGraphic[] {
-    return Object.values(this.animatedGraphics);
+    return Array.from(this.animatedGraphics.values());
   }
 
   public removeAllAnimatedGraphics(): void {
@@ -118,7 +118,7 @@ export class SymbolAnimationManager {
       animationManager: this,
     });
 
-    this.animatedGraphics[uniqueGraphicId] = newAnimatedGraphic;
+    this.animatedGraphics.set(uniqueGraphicId, newAnimatedGraphic);
 
     if (this.isAnimatedGraphicsLayerView === false || isOverlay) {
       this.animationGraphicsOverlay.add(newAnimatedGraphic);
@@ -146,6 +146,7 @@ export class SymbolAnimationManager {
         this.animationGraphicsOverlay.remove(animatedGraphic);
       }
     }
+    this.animatedGraphics.delete(uniqueGraphicId);
   }
 
   public destroy(): void {
@@ -187,13 +188,6 @@ export class SymbolAnimationManager {
         }
       );
 
-      // reactiveUtils.watch(
-      //   () => this.mapView.map.allLayers.map(layer => layer.id),
-      //   ids => {
-      //     console.log(`FeatureLayer IDs ${ids}`);
-      //   }
-      // );
-
       layerView.featureEffect = new FeatureEffect({
         includedEffect: "opacity(0.001%)",
         filter: new FeatureFilter({ where: "1<>1" }),
@@ -215,12 +209,12 @@ export class SymbolAnimationManager {
       }
 
       if (isOverlay) {
-        delete this.animatedGraphics[
+        this.animatedGraphics.delete(
           this.getUniqueId({
             graphic: removedGraphic,
             animationId: removedGraphic.symbolAnimation.id,
           })
-        ];
+        );
         return;
       } else {
         if (isAnimating) {
@@ -236,12 +230,12 @@ export class SymbolAnimationManager {
         .then(() => {
           if (!isAnimating) {
             graphicsLayerOverlay.remove(removedGraphic);
-            delete this.animatedGraphics[
+            this.animatedGraphics.delete(
               this.getUniqueId({
                 graphic: removedGraphic,
                 animationId: removedGraphic.symbolAnimation.id,
               })
-            ];
+            );
           }
         });
     });

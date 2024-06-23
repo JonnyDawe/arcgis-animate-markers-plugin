@@ -1,7 +1,7 @@
-import { PartialSpringConfig as wobbleSpringConfig } from "wobble";
+import type { PartialSpringConfig as wobbleSpringConfig } from "wobble";
 
-import { AnimatedSymbol } from "../AnimatedSymbol";
-import { EasingFunction, easingTypes } from "../utils/easingsFunctions";
+import type { AnimatedSymbol } from "../AnimatedSymbol";
+import type { EasingFunction, easingTypes } from "../utils/easingsFunctions";
 
 // Basic types and interfaces
 
@@ -116,10 +116,10 @@ export interface ISimpleMarkerWithOpacity extends __esri.SimpleMarkerSymbol {
 type SymbolType<T extends AnimatableSymbol> = T extends __esri.SimpleMarkerSymbol
   ? __esri.SimpleMarkerSymbol
   : T extends __esri.PictureMarkerSymbol
-  ? __esri.PictureMarkerSymbol
-  : T extends __esri.CIMSymbol
-  ? __esri.CIMSymbol
-  : __esri.Symbol;
+    ? __esri.PictureMarkerSymbol
+    : T extends __esri.CIMSymbol
+      ? __esri.CIMSymbol
+      : __esri.Symbol;
 
 // Animation properties
 
