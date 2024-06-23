@@ -1,4 +1,4 @@
-import { AnimatableLayerView } from "./index";
+import type { AnimatableLayerView } from "./index";
 
 export const isGraphicsLayerView = (
   layerView: AnimatableLayerView

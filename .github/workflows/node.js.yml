@@ -10,29 +10,39 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
+  build-and-test: # Define the job with the identifier 'build-and-test'
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 20.x
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          node-version: '20.x'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
 
       - name: Run the tests
         run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
+
+  security-check:
+    runs-on: ubuntu-latest
+    needs: build-and-test # This now correctly references the defined 'build-and-test' job
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run security checks
+        run: npm audit --production

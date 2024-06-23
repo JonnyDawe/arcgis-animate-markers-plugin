@@ -2,6 +2,7 @@
 
 import path from "path";
 import { defineConfig } from "vite";
+
 import packageJson from "./package.json";
 
 const getPackageName = () => {
@@ -18,25 +19,48 @@ const getPackageNameCamelCase = () => {
 
 const fileName = {
   es: `${getPackageName()}.mjs`,
+  esMin: `${getPackageName()}.min.mjs`,
 };
 
-const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
-
-module.exports = defineConfig({
+export default defineConfig({
   test: {
     environment: "jsdom",
+    reporters: ['html']
+
   },
   base: "./",
   build: {
-    minify:false,
+    minify: false,
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
       name: getPackageNameCamelCase(),
-      formats,
       fileName: (format) => fileName[format],
-    },  
+    },
     rollupOptions: {
-        external:["@react-spring/web", /@arcgis\/core\/.*/,"mini-svg-data-uri"],
-    }}
-  },
+      external: ["wobble", /@arcgis\/core\/.*/, "mini-svg-data-uri"],
+      output: [
+        {
+          format: 'es',
+          dir: `dist/${fileName.es}`,
+          sourcemap: true,
+        },
+        {
+          format: 'es',
+          dir: `dist/${fileName.esMin}`,
+          sourcemap: true,
+          plugins: [
+            {
+              name: 'minify-es',
+              renderChunk: async (code) => {
+                const { transform } = await import('esbuild');
+                const result = await transform(code, { minify: true });
+                return { code: result.code };
+              },
+            },
+          ],
+        },
+      ],
+    }
+  }
+},
 );

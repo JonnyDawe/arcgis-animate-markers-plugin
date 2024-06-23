@@ -1,12 +1,12 @@
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils.js";
-import Graphic from "@arcgis/core/Graphic";
+import type Graphic from "@arcgis/core/Graphic";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
 import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter";
-import FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
+import type FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
 
 import { AnimatedSymbol } from "./AnimatedSymbol";
-import {
+import type {
   AnimatableLayerView,
   AnimationEasingConfig,
   IAnimatedGraphic,
@@ -16,174 +16,45 @@ import { isGraphicsLayerView } from "./types/typeGuards";
 import { SPRING_PRESETS } from "./utils/constants";
 
 /**
- *  This Class manages the animation of symbols on a given
- *  AnimatableLayerView.
+ * This Class manages the animation of symbols on a given
+ * AnimatableLayerView.
  *
- *  - If the AnimatableLayerView is a GraphicsLayer, then the symbols
- *  can be modified directly, and overlay graphics can be added directly
- *  to the layer.
+ * - If the AnimatableLayerView is a GraphicsLayer, then the symbols
+ *   can be modified directly, and overlay graphics can be added directly
+ *   to the layer.
  * - If the layer is of any other animatable type, a new graphics layer
- *  must be added on top of the parent layer in order to animate symbols.
- *  The symbols from the parent layer will be mostly hidden using a
- *  feature effect.
+ *   must be added on top of the parent layer in order to animate symbols.
+ *   The symbols from the parent layer will be mostly hidden using a
+ *   feature effect.
  */
 export class SymbolAnimationManager {
+  // Private Properties
   private mapView: __esri.MapView;
+  private animatedGraphics: Map<string, IAnimatedGraphic>;
+  private graphicsObjectIdsToFilter = new Set<number>();
+  private layerOrderListener: IHandle | undefined;
 
-  /** The layerview that will be animated.
-   *  - [TO REVIEW: HAS IMPLICATOINS ON POPUP BEHAVIOUR OF THE GRAPHICS LAYER]
-   */
+  // Public Properties
   readonly parentLayerView: AnimatableLayerView;
+  readonly animationGraphicsOverlay: __esri.GraphicsLayer;
 
-  /**
-   * The graphics layer into which animatedGraphics are added.
-   */
-  readonly animationGraphicsLayer: __esri.GraphicsLayer;
-
-  /**
-   * The current animated Graphics added to the animation layer
-   */
-  private animatedGraphics: Record<string, IAnimatedGraphic>;
-
-  /**
-   * The current graphic object ids that should be filtered out.
-   * **Only applicable when the parent layerView is not a Graphics Layer**
-   */
-  private graphicsObjectIdsToFilter: Set<number> = new Set();
-
+  // Constructor
   constructor({ layerView, mapView }: { layerView: AnimatableLayerView; mapView: __esri.MapView }) {
     this.mapView = mapView;
-    this.animatedGraphics = {};
+    this.animatedGraphics = new Map<string, IAnimatedGraphic>();
     this.parentLayerView = layerView;
-    this.animationGraphicsLayer = this.setupAnimatedGraphicsLayer(layerView);
+    this.animationGraphicsOverlay = this.setupAnimatedGraphicsLayer(layerView);
   }
 
-  private get isAnimatedGraphicsLayerView(): boolean {
-    return isGraphicsLayerView(this.parentLayerView);
-  }
-
-  /**
-   * get or setup a new grahics layer view for storing and or adding animated symbols.
-   *
-   * In the case of a graphics layerview features are directly manipulated within the layer.
-   *
-   * For other types of layerview a new graphics layer is added above the parent layer and used
-   * to contain the graphics for manipulation.
-   *
-   * @param layerView - a layerview that can be animated.
-   * @returns graphics layerview
-   */
-  private setupAnimatedGraphicsLayer(layerView: AnimatableLayerView): __esri.GraphicsLayer {
-    if (isGraphicsLayerView(layerView)) {
-      return layerView.layer as __esri.GraphicsLayer;
-    } else {
-      const newAnimationGraphicsLayer = new GraphicsLayer({
-        ...((layerView.layer as __esri.FeatureLayer).effect && {
-          effect: (layerView.layer as __esri.FeatureLayer).effect,
-        }),
-      });
-
-      this.mapView.map.add(
-        newAnimationGraphicsLayer,
-        this.mapView.layerViews.findIndex(item => {
-          return item === layerView;
-        }) + 1
-      );
-
-      // **HACK**
-      // create a feature effect filter that can be used to visibly hide features
-      // from being displayed but still allows for interactions such as clicks to show
-      // popups.
-      layerView.featureEffect = new FeatureEffect({
-        includedEffect: "opacity(0.001%)",
-        filter: new FeatureFilter({ where: "1<>1" }),
-      });
-
-      this.addGraphicsLayerWatchers(newAnimationGraphicsLayer);
-      return newAnimationGraphicsLayer;
-    }
-  }
-
-  /**
-   * watch addition and removal of graphics to the animation graphics layer to ensure the
-   * list of filtered features from the feature layer is kept up to date.
-   *
-   * @param graphicsLayer
-   */
-  private addGraphicsLayerWatchers(graphicsLayer: __esri.GraphicsLayer) {
-    /** This logic tries to reduce flicker when removing points by preventing
-     * the current feature from being removed until slightly after the graphic is removed
-     * from the feature filter.
-     */
-    graphicsLayer.graphics.on("before-remove", e => {
-      const removedGraphic = e.item as IAnimatedGraphic;
-      if (this.graphicsObjectIdsToFilter.has(removedGraphic?.getObjectId()) === false) {
-        return;
-      }
-      if (!removedGraphic.symbolAnimation.isOverlay) {
-        this.removeExcludedFeature(removedGraphic);
-      }
-      e.preventDefault();
-
-      reactiveUtils
-        .whenOnce(() => {
-          return !this.mapView.updating;
-        })
-        .then(() => {
-          graphicsLayer.remove(removedGraphic);
-        });
-    });
-
-    graphicsLayer.graphics.on("before-add", e => {
-      const addedGraphic = e.item as IAnimatedGraphic;
-      if (!addedGraphic.symbolAnimation.isOverlay) {
-        this.addExcludedFeature(addedGraphic);
-      }
-    });
-  }
-
-  private addExcludedFeature(graphic: Graphic) {
-    const objectId = graphic.getObjectId();
-    if (objectId) {
-      this.graphicsObjectIdsToFilter.add(objectId);
-      this.updateExcludedFeatures();
-    }
-  }
-
-  private removeExcludedFeature(graphic: Graphic) {
-    const objectId = graphic.getObjectId();
-    if (objectId) {
-      this.graphicsObjectIdsToFilter.delete(objectId);
-      this.updateExcludedFeatures();
-    }
-  }
-
-  private updateExcludedFeatures(): void {
-    (this.parentLayerView as FeatureLayerView).featureEffect.filter = new FeatureFilter({
-      where:
-        this.graphicsObjectIdsToFilter.size > 0
-          ? `${(this.parentLayerView as FeatureLayerView).layer.objectIdField} IN ( ${Array.from(
-              this.graphicsObjectIdsToFilter
-            ).join(",")} )`
-          : "1<>1",
-    });
-  }
-
+  // Public Methods
   public hasAnimatedGraphic({
     graphic,
     animationId,
   }: {
     graphic?: __esri.Graphic;
     animationId?: string;
-  }) {
-    return (
-      this.animatedGraphics[
-        this.getUniqueId({
-          graphic,
-          animationId,
-        })
-      ] !== undefined
-    );
+  }): boolean {
+    return this.animatedGraphics.has(this.getUniqueId({ graphic, animationId }));
   }
 
   public getAnimatedGraphic({
@@ -193,16 +64,11 @@ export class SymbolAnimationManager {
     graphic?: __esri.Graphic;
     animationId?: string;
   }): IAnimatedGraphic | undefined {
-    return this.animatedGraphics[
-      this.getUniqueId({
-        graphic,
-        animationId,
-      })
-    ];
+    return this.animatedGraphics.get(this.getUniqueId({ graphic, animationId }));
   }
 
   public getAllAnimatedGraphics(): IAnimatedGraphic[] {
-    return Object.values(this.animatedGraphics);
+    return Array.from(this.animatedGraphics.values());
   }
 
   public removeAllAnimatedGraphics(): void {
@@ -224,24 +90,22 @@ export class SymbolAnimationManager {
     animationId?: string;
     opacity?: number;
   }): IAnimatedGraphic {
-    const uniqueGraphicId = this.getUniqueId({
-      graphic,
-      animationId,
-    });
+    // Remove the source layer information from the graphic except for the objectIdField.
+    if ("objectIdField" in this.parentLayerView.layer) {
+      graphic.set("sourceLayer", {
+        objectIdField: (this.parentLayerView as __esri.FeatureLayerView).layer.objectIdField,
+      });
+    }
+
+    const uniqueGraphicId = this.getUniqueId({ graphic, animationId });
 
     if (this.hasAnimatedGraphic({ animationId: uniqueGraphicId })) {
       return this.getAnimatedGraphic({ animationId: uniqueGraphicId }) as IAnimatedGraphic;
     }
 
     if (opacity) {
-      // user input opacity value
-      // clamp opacity value between 0 and 1.
       opacity = Math.min(1, Math.max(0, opacity));
     } else {
-      // get the opacity of the parent layer view.
-      // - If it is a graphics layer then we are directly adjusting a graphic from the parent layer
-      // meaning it already has an opacity matching the layer.
-      // - Otherwise we need to ensure a new graphic has an opacity matching the parent layer when it is added
       opacity = this.isAnimatedGraphicsLayerView ? 1 : this.parentLayerView.layer.opacity;
     }
 
@@ -251,13 +115,13 @@ export class SymbolAnimationManager {
       id: uniqueGraphicId,
       isOverlay,
       opacity,
+      animationManager: this,
     });
 
-    // add the graphic to the lookup
-    this.animatedGraphics[uniqueGraphicId] = newAnimatedGraphic;
+    this.animatedGraphics.set(uniqueGraphicId, newAnimatedGraphic);
 
     if (this.isAnimatedGraphicsLayerView === false || isOverlay) {
-      this.animationGraphicsLayer.add(newAnimatedGraphic);
+      this.animationGraphicsOverlay.add(newAnimatedGraphic);
     }
 
     return newAnimatedGraphic;
@@ -277,13 +141,138 @@ export class SymbolAnimationManager {
       const animatedGraphic = this.getAnimatedGraphic({
         animationId: uniqueGraphicId,
       }) as IAnimatedGraphic;
-
       animatedGraphic.symbolAnimation.resetSymbol();
       if (!this.isAnimatedGraphicsLayerView || animatedGraphic.symbolAnimation.isOverlay === true) {
-        this.animationGraphicsLayer.remove(animatedGraphic);
+        this.animationGraphicsOverlay.remove(animatedGraphic);
       }
-      delete this.animatedGraphics[uniqueGraphicId];
     }
+    this.animatedGraphics.delete(uniqueGraphicId);
+  }
+
+  public destroy(): void {
+    this.removeAllAnimatedGraphics();
+    this.layerOrderListener?.remove();
+    this.mapView.map.remove(this.animationGraphicsOverlay);
+  }
+
+  // Private Methods
+  private get isAnimatedGraphicsLayerView(): boolean {
+    return isGraphicsLayerView(this.parentLayerView);
+  }
+
+  private setupAnimatedGraphicsLayer(layerView: AnimatableLayerView): __esri.GraphicsLayer {
+    if (isGraphicsLayerView(layerView)) {
+      return layerView.layer as __esri.GraphicsLayer;
+    } else {
+      const animationGraphicsOverlay = new GraphicsLayer({
+        ...((layerView.layer as __esri.FeatureLayer).effect && {
+          effect: (layerView.layer as __esri.FeatureLayer).effect,
+        }),
+      });
+
+      this.mapView.map.add(
+        animationGraphicsOverlay,
+        this.mapView.layerViews.findIndex(item => item === layerView) + 1
+      );
+
+      this.layerOrderListener = reactiveUtils.watch(
+        () => this.mapView.map.allLayers,
+        allLayers => {
+          const layerIndex = allLayers.findIndex(layer => layer.id === animationGraphicsOverlay.id);
+          const parentLayerIndex = allLayers.findIndex(
+            layer => layer.id === this.parentLayerView.layer.id
+          );
+          if (layerIndex > parentLayerIndex + 1) {
+            this.mapView.map.reorder(animationGraphicsOverlay, parentLayerIndex + 1);
+          }
+        }
+      );
+
+      layerView.featureEffect = new FeatureEffect({
+        includedEffect: "opacity(0.001%)",
+        filter: new FeatureFilter({ where: "1<>1" }),
+      });
+
+      this.addGraphicsLayerWatchers(animationGraphicsOverlay);
+      return animationGraphicsOverlay;
+    }
+  }
+
+  private addGraphicsLayerWatchers(graphicsLayerOverlay: __esri.GraphicsLayer): void {
+    graphicsLayerOverlay.graphics.on("before-remove", e => {
+      const doNotRemove = () => e.preventDefault();
+      const removedGraphic = e.item as IAnimatedGraphic;
+      const { isOverlay, isAnimating, id: animationId } = removedGraphic.symbolAnimation;
+
+      if (!this.hasAnimatedGraphic({ graphic: removedGraphic, animationId })) {
+        return;
+      }
+
+      if (isOverlay) {
+        this.animatedGraphics.delete(
+          this.getUniqueId({
+            graphic: removedGraphic,
+            animationId: removedGraphic.symbolAnimation.id,
+          })
+        );
+        return;
+      } else {
+        if (isAnimating) {
+          doNotRemove();
+          return;
+        } else {
+          this.removeExcludedFeature(removedGraphic);
+        }
+      }
+
+      reactiveUtils
+        .whenOnce(() => !this.mapView.updating)
+        .then(() => {
+          if (!isAnimating) {
+            graphicsLayerOverlay.remove(removedGraphic);
+            this.animatedGraphics.delete(
+              this.getUniqueId({
+                graphic: removedGraphic,
+                animationId: removedGraphic.symbolAnimation.id,
+              })
+            );
+          }
+        });
+    });
+
+    graphicsLayerOverlay.graphics.on("before-add", e => {
+      const addedGraphic = e.item as IAnimatedGraphic;
+      if (!addedGraphic.symbolAnimation.isOverlay) {
+        this.addExcludedFeature(addedGraphic);
+      }
+    });
+  }
+
+  public addExcludedFeature(graphic: __esri.Graphic): void {
+    const objectId = graphic.getObjectId();
+    if (objectId) {
+      this.graphicsObjectIdsToFilter.add(objectId);
+      this.updateExcludedFeatures();
+    }
+  }
+
+  private removeExcludedFeature(graphic: Graphic): void {
+    const objectId = graphic.getObjectId();
+    if (objectId) {
+      this.graphicsObjectIdsToFilter.delete(objectId);
+      this.updateExcludedFeatures();
+    }
+  }
+
+  private updateExcludedFeatures(): void {
+    (this.parentLayerView as FeatureLayerView).featureEffect.filter = new FeatureFilter({
+      where:
+        this.graphicsObjectIdsToFilter.size > 0
+          ? `${(this.parentLayerView as FeatureLayerView).layer.objectIdField} IN (${Array.from(
+              this.graphicsObjectIdsToFilter
+            ).join(",")})`
+          : "1<>1",
+    });
   }
 
   private getUniqueIdFromGraphic(graphic: __esri.Graphic): string {

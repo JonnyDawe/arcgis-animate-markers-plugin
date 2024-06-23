@@ -2,7 +2,7 @@ import Color from "@arcgis/core/Color";
 import * as cimSymbolUtils from "@arcgis/core/symbols/support/cimSymbolUtils";
 import svgToMiniDataURI from "mini-svg-data-uri";
 
-import {
+import type {
   IAnimatableSymbolProps,
   IPictureMarkerWithOpacity,
   ISimpleMarkerWithOpacity,
@@ -69,10 +69,7 @@ export const updateSimpleMarker: onSymbolAnimationStep<__esri.SimpleMarkerSymbol
     const originalSymbolOpacity = (originalSymbol as ISimpleMarkerWithOpacity).opacity ?? 1;
     const originalFillOpacity = Math.min(
       1,
-      Math.max(
-        0,
-        originalSymbolOpacity === 0 ? 0 : originalFillColor.a / originalSymbolOpacity ?? 1
-      )
+      Math.max(0, originalSymbolOpacity === 0 ? 0 : originalFillColor.a / originalSymbolOpacity)
     );
     const fromFillOpacity = fromFillColor.a ?? 1;
 

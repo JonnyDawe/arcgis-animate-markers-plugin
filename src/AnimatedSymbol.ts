@@ -1,9 +1,11 @@
 import { Spring } from "wobble";
 
-import {
+import type { SymbolAnimationManager } from "./AnimationManager";
+import type {
   AnimatableSymbol,
   AnimationEasingConfig,
   EasingConfig,
+  IAnimatableSymbolProps,
   IAnimatedGraphic,
   IAnimationProps,
   IPictureMarkerWithOpacity,
@@ -16,12 +18,8 @@ import {
   updatePictureMarker,
   updateSimpleMarker,
 } from "./updateMarkers";
-import easingsFunctions, { EasingFunction, easingTypes } from "./utils/easingsFunctions";
-
-/** To do:
- *
- * - Pull out common utility functions for updating symbols into a seperate file.
- */
+import type { EasingFunction, easingTypes } from "./utils/easingsFunctions";
+import easingsFunctions from "./utils/easingsFunctions";
 
 /**
  * Class representing an animated symbol.
@@ -41,12 +39,14 @@ export class AnimatedSymbol {
     id,
     isOverlay = false,
     opacity = 1,
+    animationManager,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
     isOverlay?: boolean;
     opacity?: number;
+    animationManager?: SymbolAnimationManager;
   }): IAnimatedGraphic {
     (graphic as IAnimatedGraphic).symbolAnimation = new AnimatedSymbol({
       graphic,
@@ -54,6 +54,7 @@ export class AnimatedSymbol {
       id,
       isOverlay,
       opacity,
+      animationManager,
     });
     return graphic as IAnimatedGraphic;
   }
@@ -64,6 +65,16 @@ export class AnimatedSymbol {
   readonly graphic: __esri.Graphic;
   readonly opacity: number;
   readonly originalSymbol: __esri.Symbol;
+  readonly animationManager?: SymbolAnimationManager;
+
+  private _isAnimating = false;
+  public get isAnimating(): boolean {
+    return this._isAnimating;
+  }
+
+  private abortCurrentAnimation: () => void = () => {
+    return;
+  };
 
   /**
    * Constructs an AnimatedSymbol object.
@@ -78,32 +89,38 @@ export class AnimatedSymbol {
     id,
     isOverlay = false,
     opacity = 1,
+    animationManager,
   }: {
     graphic: __esri.Graphic;
     easingConfig: AnimationEasingConfig;
     id: string;
     isOverlay?: boolean;
     opacity?: number;
+    animationManager?: SymbolAnimationManager;
   }) {
     this.easingConfig = easingConfig;
     this.id = id;
     this.isOverlay = isOverlay;
     this.graphic = graphic;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.originalSymbol = (graphic.symbol as any).clone();
+    this.originalSymbol = this.cloneSymbol(graphic.symbol);
     this.opacity = opacity;
+    this.animationManager = animationManager;
 
-    if (opacity !== 1) {
-      graphic.symbol = this.setOriginalSymbolWithOpacity(opacity);
-    }
+    graphic.symbol = this.applyOpacityToSymbol(opacity);
   }
 
-  private setOriginalSymbolWithOpacity(opacity: number): __esri.Symbol {
+  private cloneSymbol(symbol: __esri.Symbol): __esri.Symbol {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (symbol as any).clone();
+  }
+
+  private applyOpacityToSymbol(opacity: number): __esri.Symbol {
     switch (this.originalSymbol.type) {
-      case "simple-marker": {
-        // store the opacity of the original simple marker symbol on the symbol
+      case "simple-marker":
         (this.originalSymbol as ISimpleMarkerWithOpacity).opacity = opacity;
+        if (opacity === 1) {
+          return this.originalSymbol;
+        }
 
         return updateSimpleMarker(
           1,
@@ -111,11 +128,13 @@ export class AnimatedSymbol {
           { opacity },
           this.originalSymbol as __esri.SimpleMarkerSymbol
         );
-      }
 
-      case "picture-marker": {
-        // store the opacity of the original picture marker symbol on the symbol
+      case "picture-marker":
         (this.originalSymbol as IPictureMarkerWithOpacity).opacity = opacity;
+
+        if (opacity === 1) {
+          return this.originalSymbol;
+        }
 
         return updatePictureMarker(
           1,
@@ -123,92 +142,52 @@ export class AnimatedSymbol {
           { opacity },
           this.originalSymbol as __esri.PictureMarkerSymbol
         );
-      }
-
-      case "cim":
       default:
         return this.originalSymbol;
     }
   }
 
-  private animationStartTimeStamp = 0;
-
-  /**
-   * Resets the animation start time stamp to zero.
-   */
-  private resetAnimationTimeStamp() {
-    this.animationStartTimeStamp = 0;
-  }
-
-  /**
-   * Starts the animation of the symbol.
-   * @param animationProps - The animation properties.
-   */
   public start(animationProps: IAnimationProps): void {
+    this.stop();
+    this._isAnimating = true;
+    const onStep = animationProps.onStep ?? this.getAnimationStepFunction();
+
     if (this.easingConfig.type === "spring") {
-      this.animateSymbolWithSpringEasing(
-        animationProps,
-        this.easingConfig.options,
-        animationProps.onStep ?? this.animateMarkerOnStep
-      );
+      this.animateWithSpring(animationProps, this.easingConfig.options, onStep);
     } else {
-      this.animateSymbolWithStandardEasing(
-        animationProps,
-        this.easingConfig.options,
-        animationProps.onStep ?? this.animateMarkerOnStep
-      );
+      this.animateWithEasing(animationProps, this.easingConfig.options, onStep);
     }
   }
 
-  /**
-   * Stops the current animation.
-   */
   public stop(): void {
-    this.abortCurrentAnimation?.();
+    this._isAnimating = false;
+    this.abortCurrentAnimation();
   }
-
   /**
    * Returns the appropriate onSymbolAnimationStep function based on the original symbol's type.
    * @returns The onSymbolAnimationStep function.
    */
-  private get animateMarkerOnStep(): onSymbolAnimationStep<__esri.Symbol> {
+  private getAnimationStepFunction(): onSymbolAnimationStep<__esri.Symbol> {
     switch (this.originalSymbol.type) {
-      case "simple-marker": {
+      case "simple-marker":
         return updateSimpleMarker;
-      }
-
-      case "picture-marker": {
+      case "picture-marker":
         return updatePictureMarker;
-      }
-
-      case "cim": {
+      case "cim":
         return updateCIMSymbolPointMarker;
-      }
       default:
-        return () => {
-          return this.originalSymbol;
-        };
+        return () => this.originalSymbol;
     }
   }
 
-  private abortCurrentAnimation: () => void = () => {
-    return;
-  };
-
-  /**
-   * Animates the symbol on each step of the animation.
-   * @param animationProps - The animation properties.
-   * @param onStep - The onSymbolAnimationStep function to use.
-   */
-  private animateSymbolWithSpringEasing(
+  private animateWithSpring(
     animationProps: IAnimationProps,
     springConfig: SpringConfig,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
     // Clone the starting symbol.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fromSymbol = (this.graphic.symbol as any).clone();
-
+    const fromSymbol = this.cloneSymbol(this.graphic.symbol);
     const springAnimator = new Spring({
       restDisplacementThreshold: 0.01,
       ...springConfig,
@@ -216,96 +195,96 @@ export class AnimatedSymbol {
       toValue: 1,
     });
 
-    const cleanup = () => {
-      springAnimator.removeAllListeners();
-    };
+    this.setUpSpringAnimator(springAnimator, animationProps, onStep, fromSymbol);
+    springAnimator.start();
+  }
 
-    this.stop(); // stop running animations
-    let abort = false; // set abort flag to false
-
-    springAnimator.onStart(() => {
-      animationProps?.onStart?.();
-    });
-
+  private setUpSpringAnimator(
+    springAnimator: Spring,
+    animationProps: IAnimationProps,
+    onStep: onSymbolAnimationStep<AnimatableSymbol>,
+    fromSymbol: __esri.Symbol
+  ) {
+    let abort = false;
+    springAnimator.onStart(() => animationProps.onStart?.());
+    springAnimator.onUpdate(spring =>
+      this.updateSymbol(onStep, spring.currentValue, fromSymbol, animationProps.to)
+    );
     springAnimator.onStop(() => {
-      if (!abort) {
-        animationProps?.onFinish?.();
-        return;
-      }
-      cleanup();
-    });
-
-    springAnimator.onUpdate(spring => {
-      // stop immediately if aborted
-      if (abort) {
-        springAnimator.stop();
-        return;
-      }
-
-      this.graphic.symbol = onStep(
-        spring.currentValue,
-        fromSymbol,
-        animationProps.to ?? {},
-        this.originalSymbol
-      );
+      this.handleAnimationComplete(animationProps, abort);
     });
 
     this.abortCurrentAnimation = () => {
       abort = true;
+      springAnimator.stop();
     };
-
-    springAnimator.start();
   }
 
-  /**
-   * Animates the symbol on each step of the animation.
-   * @param animationProps - The animation properties.
-   * @param onStep - The onSymbolAnimationStep function to use.
-   */
-  private animateSymbolWithStandardEasing(
+  private handleAnimationComplete(animationProps: IAnimationProps, aborted = false) {
+    if (!aborted) {
+      animationProps?.onFinish?.();
+      this._isAnimating = false;
+      if (animationProps.removeOnComplete) {
+        this.removeGraphic();
+      }
+    } else if (animationProps.yoyo) {
+      this.startYoYoAnimation(animationProps);
+    }
+  }
+
+  private removeGraphic() {
+    if (this.animationManager) {
+      this.animationManager.removeAnimatedGraphic({ graphic: this.graphic, animationId: this.id });
+    } else {
+      this.graphic.destroy();
+    }
+  }
+
+  private updateSymbol(
+    onStep: onSymbolAnimationStep<AnimatableSymbol>,
+    progress: number,
+    fromSymbol: __esri.Symbol,
+    toSymbol: IAnimatableSymbolProps
+  ) {
+    this.graphic.symbol = onStep(progress, fromSymbol, toSymbol ?? {}, this.originalSymbol);
+  }
+
+  private animateWithEasing(
     animationProps: IAnimationProps,
     { duration, easingFunction }: EasingConfig,
     onStep: onSymbolAnimationStep<AnimatableSymbol>
   ) {
-    // Clone the starting symbol.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fromSymbol = (this.graphic.symbol as any).clone();
+    const fromSymbol = this.cloneSymbol(this.graphic.symbol);
 
-    this.stop(); // stop running animations
-    animationProps?.onStart?.(); // fire onStart callback
-    let abort = false; // set abort flag to false
+    this.animationLoop(animationProps, duration, easingFunction, onStep, fromSymbol);
+  }
+
+  private animationLoop(
+    animationProps: IAnimationProps,
+    duration: number,
+    easingFunction: easingTypes | EasingFunction,
+    onStep: onSymbolAnimationStep<AnimatableSymbol>,
+    fromSymbol: __esri.Symbol
+  ) {
+    let startTimeStamp: number | null = null;
+    let abort = false;
+    animationProps.onStart?.();
 
     const step: FrameRequestCallback = timestamp => {
-      if (this.animationStartTimeStamp === 0) {
-        this.animationStartTimeStamp = timestamp;
-      }
-      const elapsed = timestamp - this.animationStartTimeStamp;
+      if (!startTimeStamp) startTimeStamp = timestamp;
 
-      // stop immediately if aborted
-      if (abort) {
-        this.resetAnimationTimeStamp();
+      const elapsed = timestamp - startTimeStamp;
+      if (abort || elapsed >= duration) {
+        this.finalizeAnimation(onStep, fromSymbol, abort, animationProps);
         return;
       }
 
-      // check if animation has reached final frame
-      if (elapsed > duration) {
-        // ensure final symbol state target is reached (progress = 1)
-        this.graphic.symbol = onStep(1, fromSymbol, animationProps.to ?? {}, this.originalSymbol);
-
-        this.resetAnimationTimeStamp();
-        animationProps?.onFinish?.();
-        return;
-      }
-
-      // progress aniamtion
-      this.graphic.symbol = onStep(
-        this.calculateEasingProgress(easingFunction, elapsed, duration),
+      this.updateSymbol(
+        onStep,
+        this.calculateProgress(easingFunction, elapsed, duration),
         fromSymbol,
-        animationProps.to ?? {},
-        this.originalSymbol
+        animationProps.to
       );
-
-      // request next frame
       window.requestAnimationFrame(step);
     };
 
@@ -315,21 +294,41 @@ export class AnimatedSymbol {
     };
   }
 
+  private finalizeAnimation(
+    onStep: onSymbolAnimationStep<AnimatableSymbol>,
+    fromSymbol: __esri.Symbol,
+    abort: boolean,
+    animationProps: IAnimationProps
+  ) {
+    this.handleAnimationComplete(animationProps, abort);
+    if (!abort) {
+      this.updateSymbol(onStep, 1, fromSymbol, animationProps.to);
+    }
+  }
+
+  // track whether the animation is heading out or back in for the YoYo effect
+  private isHeadingOut = false;
+  private startYoYoAnimation(animationProps: IAnimationProps) {
+    const to = this.isHeadingOut ? animationProps.to : { scale: 1, rotate: 0, opacity: 1 };
+    this.isHeadingOut = !this.isHeadingOut;
+
+    this.start({
+      ...animationProps,
+      to,
+    });
+  }
+
+  private calculateProgress(
+    easing: easingTypes | EasingFunction,
+    elapsed: number,
+    duration: number
+  ): number {
+    const t = elapsed / duration;
+    return typeof easing === "function" ? easing(t) : easingsFunctions[easing](t);
+  }
+
   public resetSymbol() {
     this.stop();
     this.graphic.symbol = this.originalSymbol;
-  }
-
-  private calculateEasingProgress(
-    easing: easingTypes | EasingFunction = "linear",
-    elapsed: number,
-    duration: number
-  ) {
-    const t = elapsed / duration;
-    if (typeof easing === "function") {
-      return easing(t);
-    } else {
-      return easingsFunctions[easing](t);
-    }
   }
 }

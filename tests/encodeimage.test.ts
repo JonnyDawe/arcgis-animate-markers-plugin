@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vitest } from "vitest";
 
 import { generateBase64Image, getImageAsBase64 } from "../src/utils/encodeimage";
 
-describe("generateBase64Image", async () => {
+describe("generateBase64Image", () => {
   beforeEach(() => {
     localStorage.clear();
     vitest.spyOn(console, "error").mockImplementation(() => {

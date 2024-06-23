@@ -4,11 +4,24 @@ import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
 import MapView from "@arcgis/core/views/MapView";
-import { beforeAll, beforeEach, describe, expect, test, vi, vitest } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test, vitest } from "vitest";
 
 import { AnimatedSymbol } from "../src/AnimatedSymbol";
 import { SymbolAnimationManager } from "../src/AnimationManager";
-import { AnimatableLayerView } from "../src/types";
+import type { AnimatableLayerView } from "../src/types";
+
+vitest.mock("@arcgis/core/views/MapView", () => {
+  const MapView = vitest.fn();
+  MapView.prototype.layerViews = {
+    findIndex: () => {
+      return 1;
+    },
+  };
+  MapView.prototype.map = {
+    add: vitest.fn(),
+  };
+  return { default: MapView };
+});
 
 describe("SymbolAnimationManager", () => {
   let manager: SymbolAnimationManager;
@@ -18,22 +31,6 @@ describe("SymbolAnimationManager", () => {
   let graphic: Graphic;
 
   beforeAll(() => {
-    vi.mock("@arcgis/core/views/MapView", () => {
-      return {
-        default: vi.fn().mockImplementation(() => {
-          return {
-            layerViews: {
-              findIndex: () => {
-                return 1;
-              },
-            },
-            map: {
-              add: vitest.fn(),
-            },
-          };
-        }),
-      };
-    });
     graphicsLayerView = { layer: new GraphicsLayer() } as unknown as __esri.GraphicsLayerView;
     featureLayerView = { layer: new FeatureLayer() } as unknown as __esri.FeatureLayerView;
     featureLayerView.layer.objectIdField = "OBJECTID";
@@ -51,7 +48,7 @@ describe("SymbolAnimationManager", () => {
         color: "red",
       }),
     });
-    const mockgetObjectId = vi.fn().mockImplementation(() => {
+    const mockgetObjectId = vitest.fn().mockImplementation(() => {
       return "999";
     });
     graphic.getObjectId = mockgetObjectId;
@@ -60,13 +57,13 @@ describe("SymbolAnimationManager", () => {
   describe("setupAnimatedGraphicsLayer", () => {
     test("animationGraphicsLayer is same as input layer from layerView when the input is a GraphicsLayerView", () => {
       manager = new SymbolAnimationManager({ layerView: graphicsLayerView, mapView });
-      expect(manager["animationGraphicsLayer"]).toBe(graphicsLayerView.layer);
+      expect(manager.animationGraphicsOverlay).toBe(graphicsLayerView.layer);
       expect(mapView.map.add).toHaveBeenCalledTimes(0);
     });
 
     test("animationGraphicsLayer is not the same as input layer from layerView when the input is not a GraphicsLayerView", () => {
       manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
-      expect(manager["animationGraphicsLayer"]).not.toBe(featureLayerView.layer);
+      expect(manager.animationGraphicsOverlay).not.toBe(featureLayerView.layer);
       expect(mapView.map.add).toHaveBeenCalledTimes(1);
       expect(mapView.map.add).toHaveBeenCalledWith(expect.anything(), 2);
     });
@@ -82,7 +79,6 @@ describe("SymbolAnimationManager", () => {
     test("returns an existing animated Graphic if it already exists", () => {
       manager = new SymbolAnimationManager({ layerView: graphicsLayerView, mapView });
       const animatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
-
       const sameAnimatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
       expect(animatedGraphic).toBe(sameAnimatedGraphic);
     });
@@ -99,7 +95,7 @@ describe("SymbolAnimationManager", () => {
           isOverlay: true,
         });
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).not.toBe(-1);
@@ -112,7 +108,7 @@ describe("SymbolAnimationManager", () => {
           animationId: "test",
         });
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).toBe(-1);
@@ -139,21 +135,7 @@ describe("SymbolAnimationManager", () => {
           isOverlay: true,
         });
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
-            return graphicInLayer === animatedGraphic;
-          })
-        ).not.toBe(-1);
-      });
-
-      test("If it is not an overlay adds a graphic to the animationGraphicsLayer", () => {
-        manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
-        const animatedGraphic = manager.makeAnimatableSymbol({
-          graphic,
-          animationId: "test",
-          isOverlay: true,
-        });
-        expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).not.toBe(-1);
@@ -163,7 +145,7 @@ describe("SymbolAnimationManager", () => {
         manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
         manager.makeAnimatableSymbol({ graphic, animationId: "test" });
 
-        expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN ( 999 )");
+        expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN (999)");
       });
 
       test("does not add the graphic to the exclude feature effect if it is an overlay and the parent layer is a featurelayer.", () => {
@@ -233,7 +215,7 @@ describe("SymbolAnimationManager", () => {
 
   describe("removeAnimatedGraphic", () => {
     beforeEach(() => {
-      const mockgetObjectId = vi.fn().mockImplementation(() => {
+      const mockgetObjectId = vitest.fn().mockImplementation(() => {
         return "999";
       });
       graphic.getObjectId = mockgetObjectId;
@@ -256,7 +238,7 @@ describe("SymbolAnimationManager", () => {
         manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
         const animatedGraphic = manager.makeAnimatableSymbol({ graphic, animationId: "test" });
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).not.toBe(-1);
@@ -264,7 +246,7 @@ describe("SymbolAnimationManager", () => {
         // wait for short period
         await new Promise(r => setTimeout(r, 300));
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).toBe(-1);
@@ -273,7 +255,7 @@ describe("SymbolAnimationManager", () => {
       test("removes the graphic from the exclude feature effect if it is not an overlay and the parent layer is a featurelayer.", () => {
         manager = new SymbolAnimationManager({ layerView: featureLayerView, mapView });
         manager.makeAnimatableSymbol({ graphic, animationId: "test" });
-        expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN ( 999 )");
+        expect(featureLayerView.featureEffect.filter.where).toBe("OBJECTID IN (999)");
         manager.removeAnimatedGraphic({ animationId: "test" });
         expect(featureLayerView.featureEffect.filter.where).toBe("1<>1");
       });
@@ -292,7 +274,7 @@ describe("SymbolAnimationManager", () => {
           isOverlay: true,
         });
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).not.toBe(-1);
@@ -300,7 +282,7 @@ describe("SymbolAnimationManager", () => {
         // wait for short period
         await new Promise(r => setTimeout(r, 300));
         expect(
-          manager.animationGraphicsLayer.graphics.findIndex(graphicInLayer => {
+          manager.animationGraphicsOverlay.graphics.findIndex(graphicInLayer => {
             return graphicInLayer === animatedGraphic;
           })
         ).toBe(-1);
@@ -310,13 +292,17 @@ describe("SymbolAnimationManager", () => {
 
   describe("removeAllAnimatedGraphics", () => {
     test("removes all animated graphics", () => {
-      manager = new SymbolAnimationManager({ layerView: graphicsLayerView, mapView });
+      manager = new SymbolAnimationManager({
+        layerView: featureLayerView,
+        mapView,
+      });
 
-      vi.spyOn(manager, "removeAnimatedGraphic");
-      manager.makeAnimatableSymbol({ graphic, animationId: "test" });
+      vitest.spyOn(manager, "removeAnimatedGraphic");
+      manager.makeAnimatableSymbol({ graphic, animationId: "test", isOverlay: true });
       manager.makeAnimatableSymbol({
         graphic: graphic.clone(),
         animationId: "anotherTest",
+        isOverlay: true,
       });
       expect(manager.getAllAnimatedGraphics().length).toBe(2);
       manager.removeAllAnimatedGraphics();
