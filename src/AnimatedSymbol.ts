@@ -1,7 +1,7 @@
 import { Spring } from "wobble";
 
-import { SymbolAnimationManager } from "./AnimationManager";
-import {
+import type { SymbolAnimationManager } from "./AnimationManager";
+import type {
   AnimatableSymbol,
   AnimationEasingConfig,
   EasingConfig,
@@ -18,7 +18,8 @@ import {
   updatePictureMarker,
   updateSimpleMarker,
 } from "./updateMarkers";
-import easingsFunctions, { EasingFunction, easingTypes } from "./utils/easingsFunctions";
+import type { EasingFunction, easingTypes } from "./utils/easingsFunctions";
+import easingsFunctions from "./utils/easingsFunctions";
 
 /**
  * Class representing an animated symbol.

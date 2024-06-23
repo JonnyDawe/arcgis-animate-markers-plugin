@@ -8,7 +8,7 @@ import { beforeAll, beforeEach, describe, expect, test, vitest } from "vitest";
 
 import { AnimatedSymbol } from "../src/AnimatedSymbol";
 import { SymbolAnimationManager } from "../src/AnimationManager";
-import { AnimatableLayerView } from "../src/types";
+import type { AnimatableLayerView } from "../src/types";
 
 vitest.mock("@arcgis/core/views/MapView", () => {
   const MapView = vitest.fn();

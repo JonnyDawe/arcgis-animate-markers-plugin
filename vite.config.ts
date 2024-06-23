@@ -2,6 +2,7 @@
 
 import path from "path";
 import { defineConfig } from "vite";
+
 import packageJson from "./package.json";
 
 const getPackageName = () => {
@@ -20,7 +21,7 @@ const fileName = {
   es: `${getPackageName()}.mjs`,
 };
 
-const formats = Object.keys(fileName) as Array<keyof typeof fileName>;
+const formats = Object.keys(fileName) as (keyof typeof fileName)[];
 
 export default defineConfig({
   test: {

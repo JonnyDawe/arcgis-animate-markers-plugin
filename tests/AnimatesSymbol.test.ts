@@ -2,11 +2,12 @@ import Point from "@arcgis/core/geometry/Point";
 import Graphic from "@arcgis/core/Graphic";
 import PictureMarkerSymbol from "@arcgis/core/symbols/PictureMarkerSymbol";
 import SimpleMarkerSymbol from "@arcgis/core/symbols/SimpleMarkerSymbol";
-import { afterEach, beforeEach, describe, expect, Mock, test, vitest } from "vitest";
+import type { Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vitest } from "vitest";
 import { Spring } from "wobble";
 
 import { AnimatedSymbol } from "../src/AnimatedSymbol";
-import {
+import type {
   AnimationEasingConfig,
   IAnimatedGraphic,
   IPictureMarkerWithOpacity,

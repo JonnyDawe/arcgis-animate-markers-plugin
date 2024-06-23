@@ -1,12 +1,12 @@
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils.js";
-import Graphic from "@arcgis/core/Graphic";
+import type Graphic from "@arcgis/core/Graphic";
 import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
 import FeatureEffect from "@arcgis/core/layers/support/FeatureEffect";
 import FeatureFilter from "@arcgis/core/layers/support/FeatureFilter";
-import FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
+import type FeatureLayerView from "@arcgis/core/views/layers/FeatureLayerView";
 
 import { AnimatedSymbol } from "./AnimatedSymbol";
-import {
+import type {
   AnimatableLayerView,
   AnimationEasingConfig,
   IAnimatedGraphic,
