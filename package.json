@@ -9,15 +9,17 @@
   ],
   "type": "module",
   "private": false,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JonnyDawe/arcgis-animate-markers-plugin.git"
   },
-  "module": "./dist/arcgis-animate-markers-plugin.min.mjs",
+  "module": "./dist/arcgis-animate-markers-plugin.min.mjs/arcgis-animate-markers-plugin.mjs",
   "exports": {
     ".": {
-      "import": "./dist/arcgis-animate-markers-plugin.min.mjs",
+      "module": "./dist/arcgis-animate-markers-plugin.min.mjs/arcgis-animate-markers-plugin.mjs",
+      "main": "./dist/arcgis-animate-markers-plugin.min.mjs/arcgis-animate-markers-plugin.mjs",
+      "import": "./dist/arcgis-animate-markers-plugin.min.mjs/arcgis-animate-markers-plugin.mjs",
       "types": "./dist/index.d.ts"
     }
   },

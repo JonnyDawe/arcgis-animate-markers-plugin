@@ -194,6 +194,14 @@ Removes all animated graphics from display.
 removeAllAnimatedGraphics(): void
 ```
 
+#### destroy
+
+Cleans up the SymbolAnimationManager by removing all animated graphics and overlays.
+
+```js
+destroy(): void
+```
+
 ### Class: `AnimatedSymbol`
 
 This class provides the ability to animate a symbol for a Graphic object in ArcGIS API for JavaScript.
@@ -279,6 +287,8 @@ interface IAnimationProps {
   onStep?: onSymbolAnimationStep<AnimatableSymbol>;
   onStart?: () => void;
   onFinish?: () => void;
+  removeOnFinish?: boolean; 
+  yoyo?: boolean; 
 }
 ```
 
@@ -286,6 +296,8 @@ interface IAnimationProps {
 - `onStep` _`optional`_ [onSymbolAnimationStep](####-onSymbolAnimationStep): An optional callback function for customising the symbol change on each animation step. On each step the applied symbol will be applied to the animating graphic.
 - `onStart` _`optional`_: an optional callback function that is called when the animation starts.
 - `onFinish` _`optional`_: an optional callback function that is called when the animation finishes.
+- `removeOnFinish` _`optional`_: Boolean indicating whether the graphic should be removed after the animation finishes.
+- `yoyo` _`optional`_: Boolean indicating whether the animation should reverse direction and repeat (YoYo effect).
 
 #### IAnimatableSymbolProps
 
