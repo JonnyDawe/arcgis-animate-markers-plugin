@@ -30,6 +30,7 @@ export default defineConfig({
   },
   base: "./",
   build: {
+    sourcemap: true,
     minify: false,
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
@@ -42,12 +43,10 @@ export default defineConfig({
         {
           format: 'es',
           dir: `dist/${fileName.es}`,
-          sourcemap: true,
         },
         {
           format: 'es',
           dir: `dist/${fileName.esMin}`,
-          sourcemap: true,
           plugins: [
             {
               name: 'minify-es',
