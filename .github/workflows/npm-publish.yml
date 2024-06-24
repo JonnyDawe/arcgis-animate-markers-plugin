@@ -3,6 +3,9 @@ name: Node.js Package
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,16 +31,16 @@ jobs:
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
-        # This step extracts the version from package.json and sets it as an environment variable
 
       - name: Create release tag
         id: create_tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
           git tag v${{ env.PACKAGE_VERSION }}
-          git push origin v${{ env.PACKAGE_VERSION }}
-        # This step creates and pushes a git tag with the package version
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/JonnyDawe/arcgis-animate-markers-plugin.git v${{ env.PACKAGE_VERSION }}
 
       - name: Check if the tag is new
         id: ensure_new_tag
@@ -48,11 +51,9 @@ jobs:
             exit 1
           fi
           echo "The tag v${{ env.PACKAGE_VERSION }} is new."
-        # This step checks if the git tag already exists to prevent re-publishing
 
       - name: Publish package on NPM 📦
         if: steps.ensure_new_tag.outcome == 'success'
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
-        # This step publishes the package to npm if the tag is new
