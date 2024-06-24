@@ -26,34 +26,7 @@ jobs:
       - name: Build distributables
         run: npm run build
 
-      - name: Extract package version
-        id: get_version
-        run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
-
-      - name: Create release tag
-        id: create_tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git tag v${{ env.PACKAGE_VERSION }}
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/JonnyDawe/arcgis-animate-markers-plugin.git v${{ env.PACKAGE_VERSION }}
-
-      - name: Check if the tag is new
-        id: ensure_new_tag
-        run: |
-          TAG_EXISTS=$(git ls-remote --tags origin | grep "refs/tags/v${{ env.PACKAGE_VERSION }}" || echo "false")
-          if [ "$TAG_EXISTS" != "false" ]; then
-            echo "The tag v${{ env.PACKAGE_VERSION }} already exists. Exiting..."
-            exit 1
-          fi
-          echo "The tag v${{ env.PACKAGE_VERSION }} is new."
-
       - name: Publish package on NPM 📦
-        if: steps.ensure_new_tag.outcome == 'success'
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
